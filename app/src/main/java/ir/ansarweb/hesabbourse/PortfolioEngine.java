@@ -11,51 +11,47 @@ public class PortfolioEngine {
 
         public double quantity;
         public double cost;
+        public double realizedProfit;
 
         public double averagePrice() {
-
-            if (quantity == 0) {
+            if (quantity <= 0) {
                 return 0;
             }
-
             return cost / quantity;
         }
     }
 
     public static Map<String, Position> calculate(Cursor cursor) {
 
-        Map<String, Position> positions =
-                new HashMap<>();
+        Map<String, Position> positions = new HashMap<>();
 
         while (cursor.moveToNext()) {
 
-            String type =
-                    cursor.getString(
-                        cursor.getColumnIndexOrThrow("type")
-                    );
+            String type = cursor.getString(
+                    cursor.getColumnIndexOrThrow("type")
+            );
 
-            String symbol =
-                    cursor.getString(
-                        cursor.getColumnIndexOrThrow("symbol")
-                    );
+            String symbol = cursor.getString(
+                    cursor.getColumnIndexOrThrow("symbol")
+            );
 
-            double quantity =
-                    cursor.getDouble(
-                        cursor.getColumnIndexOrThrow("quantity")
-                    );
+            if (symbol == null || symbol.trim().isEmpty()) {
+                continue;
+            }
 
-            double price =
-                    cursor.getDouble(
-                        cursor.getColumnIndexOrThrow("price")
-                    );
+            double quantity = cursor.getDouble(
+                    cursor.getColumnIndexOrThrow("quantity")
+            );
 
-            double fee =
-                    cursor.getDouble(
-                        cursor.getColumnIndexOrThrow("fee")
-                    );
+            double price = cursor.getDouble(
+                    cursor.getColumnIndexOrThrow("price")
+            );
 
-            Position position =
-                    positions.get(symbol);
+            double fee = cursor.getDouble(
+                    cursor.getColumnIndexOrThrow("fee")
+            );
+
+            Position position = positions.get(symbol);
 
             if (position == null) {
                 position = new Position();
@@ -71,20 +67,32 @@ public class PortfolioEngine {
 
             } else if ("SELL".equals(type)) {
 
+                double sellQuantity =
+                        Math.min(quantity, position.quantity);
+
                 double average =
                         position.averagePrice();
 
-                double sellQuantity =
-                        Math.min(
-                            quantity,
-                            position.quantity
-                        );
+                double sellValue =
+                        sellQuantity * price;
 
-                position.cost -=
-                        average * sellQuantity;
+                double costOfSold =
+                        sellQuantity * average;
 
-                position.quantity -=
-                        sellQuantity;
+                position.realizedProfit +=
+                        sellValue - costOfSold - fee;
+
+                position.cost -= costOfSold;
+
+                position.quantity -= sellQuantity;
+
+                if (position.quantity < 0) {
+                    position.quantity = 0;
+                }
+
+                if (position.cost < 0) {
+                    position.cost = 0;
+                }
             }
         }
 
