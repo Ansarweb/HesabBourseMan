@@ -35,14 +35,8 @@ public class MainActivity extends Activity {
     private void buildInterface() {
 
         LinearLayout root = new LinearLayout(this);
-
-        root.setOrientation(
-                LinearLayout.VERTICAL
-        );
-
-        root.setPadding(
-                24, 24, 24, 24
-        );
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(24, 24, 24, 24);
 
         root.addView(
                 createText(
@@ -104,16 +98,13 @@ public class MainActivity extends Activity {
                 )
         );
 
-        dashboard =
-                createText(
-                        "",
-                        16,
-                        false
-                );
+        dashboard = createText(
+                "",
+                16,
+                false
+        );
 
-        ScrollView scroll =
-                new ScrollView(this);
-
+        ScrollView scroll = new ScrollView(this);
         scroll.addView(dashboard);
 
         root.addView(
@@ -133,14 +124,11 @@ public class MainActivity extends Activity {
             float size,
             boolean bold) {
 
-        TextView view =
-                new TextView(this);
+        TextView view = new TextView(this);
 
         view.setText(text);
         view.setTextSize(size);
-        view.setPadding(
-                0, 10, 0, 10
-        );
+        view.setPadding(0, 10, 0, 10);
 
         if (bold) {
             view.setTypeface(
@@ -157,8 +145,7 @@ public class MainActivity extends Activity {
             String text,
             Runnable action) {
 
-        Button button =
-                new Button(this);
+        Button button = new Button(this);
 
         button.setText(text);
         button.setTextSize(17);
@@ -172,15 +159,17 @@ public class MainActivity extends Activity {
 
     private LinearLayout createForm() {
 
-        LinearLayout form =
-                new LinearLayout(this);
+        LinearLayout form = new LinearLayout(this);
 
         form.setOrientation(
                 LinearLayout.VERTICAL
         );
 
         form.setPadding(
-                35, 5, 35, 5
+                35,
+                5,
+                35,
+                5
         );
 
         return form;
@@ -190,8 +179,7 @@ public class MainActivity extends Activity {
             String hint,
             String value) {
 
-        EditText field =
-                new EditText(this);
+        EditText field = new EditText(this);
 
         field.setHint(hint);
         field.setText(value);
@@ -225,13 +213,10 @@ public class MainActivity extends Activity {
                         .replace("،", "")
                         .trim();
 
-        return Double.parseDouble(
-                normalized
-        );
+        return Double.parseDouble(normalized);
     }
 
-    private String formatNumber(
-            double value) {
+    private String formatNumber(double value) {
 
         if (Math.abs(
                 value - Math.round(value)
@@ -264,8 +249,8 @@ public class MainActivity extends Activity {
     }
 
     /*
-     * محاسبه همیشه از قدیمی‌ترین معامله
-     * به جدیدترین معامله انجام می‌شود.
+     * محاسبه از قدیمی‌ترین معامله
+     * به جدیدترین معامله.
      */
     private Map<String, PortfolioEngine.Position>
     calculatePositions() {
@@ -440,8 +425,7 @@ public class MainActivity extends Activity {
                                 }
 
                                 /*
-                                 * حالت مبلغ:
-                                 * تعداد = مبلغ ÷ قیمت
+                                 * حالت ورود مبلغ
                                  */
                                 if (q <= 0 &&
                                         total > 0) {
@@ -734,8 +718,8 @@ public class MainActivity extends Activity {
     }
 
     /*
-     * وضعیت پایین صفحه:
-     * فقط موجودی فعلی نمادها نمایش داده می‌شود.
+     * وضعیت فعلی:
+     * فقط سهم‌هایی که هنوز موجودی دارند.
      */
     private void refreshDashboard() {
 
@@ -778,190 +762,6 @@ public class MainActivity extends Activity {
             ).append("\n");
 
             result.append(
-                    "تعداد فعلی: "
-            ).append(
-                    formatNumber(
-                            position.quantity
-                    )
-            ).append("\n");
-
-            result.append(
-                    "میانگین خرید: "
-            ).append(
-                    formatNumber(
-                            position.averageBuyPrice()
-                    )
-            ).append("\n");
-
-            result.append(
-                    "بهای تمام‌شده فعلی: "
-            ).append(
-                    formatNumber(
-                            position.cost
-                    )
-            ).append("\n");
-
-            if (position.sellQuantity > 0) {
-
-                result.append(
-                        "سود خالص فروش: "
-                ).append(
-                        formatNumber(
-                                position.realizedProfit
-                        )
-                ).append("\n");
-            }
-        }
-
-        if (!found) {
-
-            result.append(
-                    "در حال حاضر هیچ سهمی در سبدها وجود ندارد."
-            );
-        }
-
-        dashboard.setText(
-                result.toString()
-        );
-    }
-
-    /*
-     * داشبورد اصلی:
-     *
-     * مرحله اول:
-     * فقط سبدهایی که در حال حاضر سهم دارند نمایش داده می‌شوند.
-     *
-     * مرحله دوم:
-     * با انتخاب سبد، فقط نمادهای فعلی همان سبد نمایش داده می‌شوند.
-     */
-    private void showPortfolioDialog() {
-
-        Map<String, PortfolioEngine.Position>
-                positions =
-                calculatePositions();
-
-        LinkedHashMap<String, Boolean>
-                portfolios =
-                new LinkedHashMap<>();
-
-        /*
-         * ساخت فهرست سبدهای دارای موجودی فعلی
-         */
-        for (PortfolioEngine.Position position
-                : positions.values()) {
-
-            if (position.quantity > 0.000001) {
-
-                portfolios.put(
-                        position.portfolio,
-                        true
-                );
-            }
-        }
-
-        /*
-         * اگر هیچ سبد فعالی وجود نداشته باشد
-         */
-        if (portfolios.isEmpty()) {
-
-            new AlertDialog.Builder(this)
-                    .setTitle(
-                            "سبدهای فعلی"
-                    )
-                    .setMessage(
-                            "در حال حاضر هیچ سبدی دارای سهم نیست."
-                    )
-                    .setPositiveButton(
-                            "بستن",
-                            null
-                    )
-                    .show();
-
-            return;
-        }
-
-        String[] names =
-                portfolios.keySet()
-                        .toArray(
-                                new String[0]
-                        );
-
-        /*
-         * فقط نام سبدها در مرحله اول
-         */
-        new AlertDialog.Builder(this)
-                .setTitle(
-                        "سبدهای فعلی"
-                )
-                .setItems(
-                        names,
-                        (dialog, which) -> {
-
-                            showPortfolioSymbolsDialog(
-                                    names[which],
-                                    positions
-                            );
-                        }
-                )
-                .setNegativeButton(
-                        "بستن",
-                        null
-                )
-                .show();
-    }
-
-    /*
-     * نمایش نمادهای فعلی یک سبد
-     */
-    private void showPortfolioSymbolsDialog(
-            String portfolioName,
-            Map<String, PortfolioEngine.Position> positions) {
-
-        StringBuilder result =
-                new StringBuilder();
-
-        result.append(
-                "سبد: "
-        ).append(
-                portfolioName
-        ).append(
-                "\n\n"
-        );
-
-        boolean found = false;
-
-        for (PortfolioEngine.Position position
-                : positions.values()) {
-
-            /*
-             * فقط نمادهای همین سبد
-             */
-            if (!portfolioName.equals(
-                    position.portfolio
-            )) {
-                continue;
-            }
-
-            /*
-             * فقط نمادهایی که هنوز موجودی دارند
-             */
-            if (position.quantity <= 0.000001) {
-                continue;
-            }
-
-            found = true;
-
-            result.append(
-                    "━━━━━━━━━━━━━━━━━━\n"
-            );
-
-            result.append(
-                    "📌 نماد: "
-            ).append(
-                    position.symbol
-            ).append("\n");
-
-            result.append(
                     "📦 تعداد فعلی: "
             ).append(
                     formatNumber(
@@ -986,23 +786,220 @@ public class MainActivity extends Activity {
             ).append("\n");
 
             /*
-             * اطلاعات فروش و سود خالص
+             * فروش‌های قبلی همین نماد
              */
             if (position.sellQuantity > 0) {
 
                 result.append(
-                        "🔴 میانگین فروش: "
+                        "📤 فروخته‌شده قبلی: "
                 ).append(
                         formatNumber(
-                                position.averageSellPrice()
+                                position.sellQuantity
                         )
                 ).append("\n");
 
                 result.append(
-                        "💵 مقدار فروخته‌شده: "
+                        "📈 سود خالص فروش: "
+                ).append(
+                        formatNumber(
+                                position.realizedProfit
+                        )
+                ).append("\n");
+            }
+        }
+
+        if (!found) {
+
+            result.append(
+                    "در حال حاضر هیچ سهمی در سبدها وجود ندارد."
+            );
+        }
+
+        dashboard.setText(
+                result.toString()
+        );
+    }
+
+    /*
+     * مرحله اول:
+     * فقط سبدهای دارای موجودی فعلی.
+     */
+    private void showPortfolioDialog() {
+
+        Map<String, PortfolioEngine.Position>
+                positions =
+                calculatePositions();
+
+        LinkedHashMap<String, Boolean>
+                portfolios =
+                new LinkedHashMap<>();
+
+        for (PortfolioEngine.Position position
+                : positions.values()) {
+
+            if (position.quantity > 0.000001) {
+
+                portfolios.put(
+                        position.portfolio,
+                        true
+                );
+            }
+        }
+
+        if (portfolios.isEmpty()) {
+
+            new AlertDialog.Builder(this)
+                    .setTitle(
+                            "سبدهای فعلی"
+                    )
+                    .setMessage(
+                            "در حال حاضر هیچ سبدی دارای سهم نیست."
+                    )
+                    .setPositiveButton(
+                            "بستن",
+                            null
+                    )
+                    .show();
+
+            return;
+        }
+
+        String[] names =
+                portfolios.keySet()
+                        .toArray(
+                                new String[0]
+                        );
+
+        new AlertDialog.Builder(this)
+                .setTitle(
+                        "📊 سبدهای فعلی"
+                )
+                .setItems(
+                        names,
+                        (dialog, which) -> {
+
+                            showPortfolioSymbolsDialog(
+                                    names[which],
+                                    positions
+                            );
+                        }
+                )
+                .setNegativeButton(
+                        "بستن",
+                        null
+                )
+                .show();
+    }
+
+    /*
+     * =========================================================
+     * جزئیات یک سبد
+     *
+     * بخش اول:
+     * نمادهای فعلی
+     *
+     * بخش دوم:
+     * تمام نمادهایی که قبلاً فروخته شده‌اند
+     * حتی اگر موجودی آنها الان صفر باشد.
+     * =========================================================
+     */
+    private void showPortfolioSymbolsDialog(
+            String portfolioName,
+            Map<String, PortfolioEngine.Position> positions) {
+
+        StringBuilder result =
+                new StringBuilder();
+
+        result.append(
+                "📊 سبد: "
+        ).append(
+                portfolioName
+        ).append(
+                "\n\n"
+        );
+
+        boolean currentFound = false;
+        boolean soldFound = false;
+
+        /*
+         * =====================================================
+         * نمادهای فعلی
+         * =====================================================
+         */
+
+        result.append(
+                "🟢 نمادهای فعلی سبد\n\n"
+        );
+
+        for (PortfolioEngine.Position position
+                : positions.values()) {
+
+            if (!portfolioName.equals(
+                    position.portfolio
+            )) {
+                continue;
+            }
+
+            if (position.quantity <= 0.000001) {
+                continue;
+            }
+
+            currentFound = true;
+
+            result.append(
+                    "━━━━━━━━━━━━━━━━━━\n"
+            );
+
+            result.append(
+                    "📌 نماد: "
+            ).append(
+                    position.symbol
+            ).append("\n");
+
+            result.append(
+                    "📦 موجودی فعلی: "
+            ).append(
+                    formatNumber(
+                            position.quantity
+                    )
+            ).append("\n");
+
+            result.append(
+                    "🟢 میانگین خرید: "
+            ).append(
+                    formatNumber(
+                            position.averageBuyPrice()
+                    )
+            ).append("\n");
+
+            result.append(
+                    "💰 بهای تمام‌شده فعلی: "
+            ).append(
+                    formatNumber(
+                            position.cost
+                    )
+            ).append("\n");
+
+            /*
+             * اگر بخشی از سهم قبلاً فروخته شده
+             */
+            if (position.sellQuantity > 0) {
+
+                result.append(
+                        "📤 میزان فروش قبلی: "
                 ).append(
                         formatNumber(
                                 position.sellQuantity
+                        )
+                ).append(
+                        " سهم\n"
+                );
+
+                result.append(
+                        "💵 میانگین فروش: "
+                ).append(
+                        formatNumber(
+                                position.averageSellPrice()
                         )
                 ).append("\n");
 
@@ -1015,25 +1012,164 @@ public class MainActivity extends Activity {
                 ).append("\n");
 
                 result.append(
-                        "📈 سود خالص حاصل از فروش: "
+                        "📈 سود خالص فروش‌های قبلی: "
                 ).append(
                         formatNumber(
                                 position.realizedProfit
                         )
                 ).append("\n");
+            }
+
+            result.append("\n");
+        }
+
+        if (!currentFound) {
+
+            result.append(
+                    "در حال حاضر سهمی در این سبد وجود ندارد.\n"
+            );
+        }
+
+        /*
+         * =====================================================
+         * فروش‌های قبلی
+         * =====================================================
+         */
+
+        result.append(
+                "\n━━━━━━━━━━━━━━━━━━\n"
+        );
+
+        result.append(
+                "📕 سود و زیان فروش‌های قبلی\n\n"
+        );
+
+        for (PortfolioEngine.Position position
+                : positions.values()) {
+
+            if (!portfolioName.equals(
+                    position.portfolio
+            )) {
+                continue;
+            }
+
+            /*
+             * این نماد حداقل یک بار فروخته شده است.
+             */
+            if (position.sellQuantity <= 0) {
+                continue;
+            }
+
+            soldFound = true;
+
+            result.append(
+                    "━━━━━━━━━━━━━━━━━━\n"
+            );
+
+            result.append(
+                    "📌 نماد: "
+            ).append(
+                    position.symbol
+            ).append("\n");
+
+            result.append(
+                    "📤 میزان فروش: "
+            ).append(
+                    formatNumber(
+                            position.sellQuantity
+                    )
+            ).append(
+                    " سهم\n"
+            );
+
+            result.append(
+                    "💵 میانگین قیمت فروش: "
+            ).append(
+                    formatNumber(
+                            position.averageSellPrice()
+                    )
+            ).append("\n");
+
+            result.append(
+                    "💰 مبلغ ناخالص فروش: "
+            ).append(
+                    formatNumber(
+                            position.sellAmount
+                    )
+            ).append("\n");
+
+            result.append(
+                    "💸 کارمزد فروش: "
+            ).append(
+                    formatNumber(
+                            position.sellFees
+                    )
+            ).append("\n");
+
+            result.append(
+                    "💳 دریافتی خالص فروش: "
+            ).append(
+                    formatNumber(
+                            position.totalSellNet()
+                    )
+            ).append("\n");
+
+            /*
+             * بهای تمام‌شده سهم فروخته‌شده
+             *
+             * سود خالص =
+             * دریافتی خالص فروش
+             * منهای بهای تمام‌شده
+             */
+            double soldCost =
+                    position.totalSellNet()
+                            - position.realizedProfit;
+
+            result.append(
+                    "📦 بهای تمام‌شده سهم فروخته‌شده: "
+            ).append(
+                    formatNumber(
+                            soldCost
+                    )
+            ).append("\n");
+
+            result.append(
+                    "📈 سود خالص حاصل از فروش: "
+            ).append(
+                    formatNumber(
+                            position.realizedProfit
+                    )
+            ).append("\n");
+
+            /*
+             * وضعیت فعلی نماد
+             */
+            if (position.quantity <= 0.000001) {
+
+                result.append(
+                        "📦 وضعیت فعلی: کاملاً فروخته شده\n"
+                );
 
             } else {
 
                 result.append(
-                        "📈 سود خالص حاصل از فروش: ۰"
-                ).append("\n");
+                        "📦 موجودی باقی‌مانده: "
+                ).append(
+                        formatNumber(
+                                position.quantity
+                        )
+                ).append(
+                        " سهم\n"
+                );
             }
+
+            result.append("\n");
         }
 
-        if (!found) {
+        if (!soldFound) {
 
             result.append(
-                    "این سبد در حال حاضر سهمی ندارد."
+                    "هنوز فروش ثبت‌شده‌ای برای این سبد وجود ندارد.\n"
             );
         }
 
@@ -1050,7 +1186,7 @@ public class MainActivity extends Activity {
 
         new AlertDialog.Builder(this)
                 .setTitle(
-                        "نمادهای سبد «"
+                        "جزئیات سبد «"
                                 + portfolioName
                                 + "»"
                 )
