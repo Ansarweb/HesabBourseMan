@@ -9,7 +9,7 @@ import android.database.sqlite.SQLiteOpenHelper;
 public class DatabaseHelper extends SQLiteOpenHelper {
 
     private static final String DB_NAME = "hesab_bourse.db";
-    private static final int DB_VERSION = 4;
+    private static final int DB_VERSION = 5;
 
     public DatabaseHelper(Context context) {
         super(context, DB_NAME, null, DB_VERSION);
@@ -29,6 +29,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                         "price REAL DEFAULT 0," +
                         "fee REAL DEFAULT 0," +
                         "amount REAL DEFAULT 0," +
+                        "description TEXT DEFAULT ''," +
                         "date INTEGER NOT NULL)"
         );
     }
@@ -47,13 +48,12 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             );
         }
 
-        if (oldVersion < 3) {
-            // نسخه 3 ساختار جدیدی به جدول اضافه نمی‌کند.
-        }
-
-        if (oldVersion < 4) {
-            // نسخه 4 نیز از همان ساختار تراکنش استفاده می‌کند.
-            // امکانات جدید در لایه برنامه اضافه می‌شوند.
+        if (oldVersion < 5) {
+            addColumnIfMissing(
+                    db,
+                    "description",
+                    "TEXT DEFAULT ''"
+            );
         }
     }
 
@@ -68,7 +68,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                             + column + " " + definition
             );
         } catch (Exception ignored) {
-            // ستون از قبل وجود دارد.
         }
     }
 
@@ -82,48 +81,20 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             double fee,
             double amount) {
 
-        ContentValues values =
-                new ContentValues();
-
-        values.put("type", type);
-
-        values.put(
-                "portfolio",
-                normalizePortfolio(portfolio)
-        );
-
-        values.put(
-                "broker",
-                broker == null
-                        ? ""
-                        : broker.trim()
-        );
-
-        values.put(
-                "symbol",
-                symbol == null
-                        ? ""
-                        : symbol.trim()
-        );
-
-        values.put("quantity", quantity);
-        values.put("price", price);
-        values.put("fee", fee);
-        values.put("amount", amount);
-
-        values.put(
-                "date",
-                System.currentTimeMillis()
-        );
-
-        return getWritableDatabase().insert(
-                "transactions",
-                null,
-                values
+        return addTransactionWithDescription(
+                type,
+                portfolio,
+                broker,
+                symbol,
+                quantity,
+                price,
+                fee,
+                amount,
+                ""
         );
     }
 
-    public long addTransactionWithDate(
+    public long addTransactionWithDescription(
             String type,
             String portfolio,
             String broker,
@@ -132,10 +103,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             double price,
             double fee,
             double amount,
-            long date) {
+            String description) {
 
-        ContentValues values =
-                new ContentValues();
+        ContentValues values = new ContentValues();
 
         values.put("type", type);
         values.put(
@@ -145,23 +115,30 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
         values.put(
                 "broker",
-                broker == null
-                        ? ""
-                        : broker.trim()
+                broker == null ? "" : broker.trim()
         );
 
         values.put(
                 "symbol",
-                symbol == null
-                        ? ""
-                        : symbol.trim()
+                symbol == null ? "" : symbol.trim()
         );
 
         values.put("quantity", quantity);
         values.put("price", price);
         values.put("fee", fee);
         values.put("amount", amount);
-        values.put("date", date);
+
+        values.put(
+                "description",
+                description == null
+                        ? ""
+                        : description.trim()
+        );
+
+        values.put(
+                "date",
+                System.currentTimeMillis()
+        );
 
         return getWritableDatabase().insert(
                 "transactions",
@@ -180,10 +157,10 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             double price,
             double fee,
             double amount,
+            String description,
             long date) {
 
-        ContentValues values =
-                new ContentValues();
+        ContentValues values = new ContentValues();
 
         values.put("type", type);
         values.put(
@@ -193,22 +170,26 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
         values.put(
                 "broker",
-                broker == null
-                        ? ""
-                        : broker.trim()
+                broker == null ? "" : broker.trim()
         );
 
         values.put(
                 "symbol",
-                symbol == null
-                        ? ""
-                        : symbol.trim()
+                symbol == null ? "" : symbol.trim()
         );
 
         values.put("quantity", quantity);
         values.put("price", price);
         values.put("fee", fee);
         values.put("amount", amount);
+
+        values.put(
+                "description",
+                description == null
+                        ? ""
+                        : description.trim()
+        );
+
         values.put("date", date);
 
         return getWritableDatabase().update(
@@ -257,22 +238,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 );
     }
 
-    public Cursor getTransactionsByPortfolio(
-            String portfolio) {
-
-        return getReadableDatabase()
-                .rawQuery(
-                        "SELECT * FROM transactions " +
-                                "WHERE portfolio = ? " +
-                                "ORDER BY date DESC, id DESC",
-                        new String[]{
-                                normalizePortfolio(portfolio)
-                        }
-                );
-    }
-
-    public Cursor searchTransactions(
-            String query) {
+    public Cursor searchTransactions(String query) {
 
         String q =
                 query == null
@@ -285,9 +251,11 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                                 "WHERE symbol LIKE ? " +
                                 "OR portfolio LIKE ? " +
                                 "OR broker LIKE ? " +
+                                "OR description LIKE ? " +
                                 "OR type LIKE ? " +
                                 "ORDER BY date DESC, id DESC",
                         new String[]{
+                                "%" + q + "%",
                                 "%" + q + "%",
                                 "%" + q + "%",
                                 "%" + q + "%",
@@ -296,25 +264,23 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 );
     }
 
-    public double getCashBalance(
-            String portfolio) {
+    public double getCashBalance(String portfolio) {
 
         Cursor cursor =
                 getReadableDatabase()
                         .rawQuery(
-                                "SELECT " +
-                                        "COALESCE(SUM(" +
+                                "SELECT COALESCE(SUM(" +
                                         "CASE " +
-                                        "WHEN type = 'DEPOSIT' " +
+                                        "WHEN type='DEPOSIT' " +
                                         "THEN amount " +
-                                        "WHEN type = 'WITHDRAW' " +
+                                        "WHEN type='WITHDRAW' " +
                                         "THEN -amount " +
-                                        "WHEN type = 'BUY' " +
+                                        "WHEN type='BUY' " +
                                         "THEN -(amount + fee) " +
-                                        "WHEN type = 'SELL' " +
+                                        "WHEN type='SELL' " +
                                         "THEN (amount - fee) " +
                                         "ELSE 0 END" +
-                                        "), 0) " +
+                                        "),0) " +
                                         "FROM transactions " +
                                         "WHERE portfolio = ?",
                                 new String[]{
@@ -334,12 +300,10 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         }
     }
 
-    private String normalizePortfolio(
-            String portfolio) {
+    private String normalizePortfolio(String portfolio) {
 
-        if (portfolio == null
-                || portfolio.trim().isEmpty()) {
-
+        if (portfolio == null ||
+                portfolio.trim().isEmpty()) {
             return "اصلی";
         }
 
