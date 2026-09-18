@@ -37,6 +37,15 @@ public class MainActivity extends Activity {
     private static final int REQUEST_EXPORT_BACKUP = 1001;
     private static final int REQUEST_IMPORT_BACKUP = 1002;
 
+    /*
+     * جلوگیری از اجرای دوباره TextWatcher
+     * هنگام فرمت کردن عدد
+     */
+    private boolean formattingNumber = false;
+
+    /*
+     * جلوگیری از محاسبه همزمان فیلدها
+     */
     private boolean calculatingFields = false;
 
     @Override
@@ -95,10 +104,6 @@ public class MainActivity extends Activity {
         cash.setOnClickListener(v -> showCashBalance());
         root.addView(cash);
 
-        // =====================================================
-        // BACKUP
-        // =====================================================
-
         Button exportBackup = new Button(this);
         exportBackup.setText("💾 گرفتن بک‌آپ");
         exportBackup.setOnClickListener(v -> startBackupExport());
@@ -116,9 +121,6 @@ public class MainActivity extends Activity {
     // BACKUP / RESTORE
     // =========================================================
 
-    /*
-     * شروع خروجی گرفتن از بک‌آپ
-     */
     private void startBackupExport() {
 
         String fileName =
@@ -130,17 +132,10 @@ public class MainActivity extends Activity {
                 ".json";
 
         Intent intent =
-                new Intent(
-                        Intent.ACTION_CREATE_DOCUMENT
-                );
+                new Intent(Intent.ACTION_CREATE_DOCUMENT);
 
-        intent.addCategory(
-                Intent.CATEGORY_OPENABLE
-        );
-
-        intent.setType(
-                "application/json"
-        );
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("application/json");
 
         intent.putExtra(
                 Intent.EXTRA_TITLE,
@@ -153,22 +148,25 @@ public class MainActivity extends Activity {
         );
     }
 
-    /*
-     * شروع انتخاب فایل بک‌آپ
-     */
     private void startBackupImport() {
 
         Intent intent =
-                new Intent(
-                        Intent.ACTION_OPEN_DOCUMENT
-                );
+                new Intent(Intent.ACTION_OPEN_DOCUMENT);
 
-        intent.addCategory(
-                Intent.CATEGORY_OPENABLE
-        );
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
 
-        intent.setType(
-                "application/json"
+        /*
+         * بعضی گوشی‌ها فایل JSON را با MIME دیگری
+         * نشان می‌دهند، بنابراین فقط JSON محدود نمی‌کنیم.
+         */
+        intent.setType("*/*");
+
+        intent.putExtra(
+                Intent.EXTRA_MIME_TYPES,
+                new String[]{
+                        "application/json",
+                        "text/plain"
+                }
         );
 
         startActivityForResult(
@@ -177,9 +175,6 @@ public class MainActivity extends Activity {
         );
     }
 
-    /*
-     * دریافت نتیجه انتخاب/ذخیره فایل
-     */
     @Override
     protected void onActivityResult(
             int requestCode,
@@ -199,26 +194,19 @@ public class MainActivity extends Activity {
             return;
         }
 
-        Uri uri =
-                data.getData();
+        Uri uri = data.getData();
 
-        if (requestCode ==
-                REQUEST_EXPORT_BACKUP) {
+        if (requestCode == REQUEST_EXPORT_BACKUP) {
 
             exportBackupToUri(uri);
 
-        } else if (requestCode ==
-                REQUEST_IMPORT_BACKUP) {
+        } else if (requestCode == REQUEST_IMPORT_BACKUP) {
 
             confirmBackupImport(uri);
         }
     }
 
-    /*
-     * ذخیره بک‌آپ روی فایل انتخاب‌شده
-     */
-    private void exportBackupToUri(
-            Uri uri) {
+    private void exportBackupToUri(Uri uri) {
 
         try {
 
@@ -230,7 +218,6 @@ public class MainActivity extends Activity {
                             .openOutputStream(uri);
 
             if (outputStream == null) {
-
                 throw new Exception(
                         "امکان باز کردن فایل وجود ندارد."
                 );
@@ -259,16 +246,10 @@ public class MainActivity extends Activity {
         }
     }
 
-    /*
-     * تأیید قبل از بازیابی
-     */
-    private void confirmBackupImport(
-            Uri uri) {
+    private void confirmBackupImport(Uri uri) {
 
         new AlertDialog.Builder(this)
-                .setTitle(
-                        "⚠️ بازیابی بک‌آپ"
-                )
+                .setTitle("⚠️ بازیابی بک‌آپ")
                 .setMessage(
                         "با بازیابی این فایل، " +
                         "تراکنش‌های فعلی برنامه حذف و " +
@@ -287,11 +268,7 @@ public class MainActivity extends Activity {
                 .show();
     }
 
-    /*
-     * خواندن فایل بک‌آپ و بازیابی
-     */
-    private void importBackupFromUri(
-            Uri uri) {
+    private void importBackupFromUri(Uri uri) {
 
         try {
 
@@ -300,7 +277,6 @@ public class MainActivity extends Activity {
                             .openInputStream(uri);
 
             if (inputStream == null) {
-
                 throw new Exception(
                         "امکان باز کردن فایل وجود ندارد."
                 );
@@ -320,14 +296,12 @@ public class MainActivity extends Activity {
             String line;
 
             while ((line = reader.readLine()) != null) {
-
                 json.append(line);
             }
 
             reader.close();
 
             if (json.length() == 0) {
-
                 throw new Exception(
                         "فایل بک‌آپ خالی است."
                 );
@@ -341,10 +315,6 @@ public class MainActivity extends Activity {
                     "✅ بازیابی بک‌آپ با موفقیت انجام شد."
             );
 
-            /*
-             * صفحه اصلی دوباره ساخته می‌شود
-             * تا اطلاعات جدید نمایش داده شوند.
-             */
             buildMainScreen();
 
         } catch (Exception e) {
@@ -356,9 +326,14 @@ public class MainActivity extends Activity {
         }
     }
 
+    // =========================================================
+    // BASIC UI
+    // =========================================================
+
     private EditText field(String hint) {
 
         EditText e = new EditText(this);
+
         e.setHint(hint);
         e.setSingleLine(true);
         e.setPadding(16, 12, 16, 12);
@@ -366,21 +341,56 @@ public class MainActivity extends Activity {
         return e;
     }
 
+    /*
+     * فیلد عددی با جداکننده هزارگان
+     */
+    private EditText numberField(String hint) {
+
+        EditText e = field(hint);
+
+        addThousandsFormatter(e);
+
+        return e;
+    }
+
+    // =========================================================
+    // TRADE
+    // =========================================================
+
     private void showTradeDialog() {
 
         LinearLayout box = new LinearLayout(this);
-        box.setOrientation(LinearLayout.VERTICAL);
-        box.setPadding(20, 10, 20, 10);
 
-        EditText portfolio = field("سبد / پرتفوی");
+        box.setOrientation(
+                LinearLayout.VERTICAL
+        );
+
+        box.setPadding(
+                20, 10, 20, 10
+        );
+
+        EditText portfolio =
+                field("سبد / پرتفوی");
+
         portfolio.setText("اصلی");
 
-        EditText broker = field("کارگزاری");
-        EditText symbol = field("نماد");
-        EditText quantity = field("تعداد سهم");
-        EditText price = field("قیمت هر سهم");
-        EditText totalAmount = field("مبلغ کل معامله");
-        EditText description = field("توضیحات");
+        EditText broker =
+                field("کارگزاری");
+
+        EditText symbol =
+                field("نماد");
+
+        EditText quantity =
+                numberField("تعداد سهم");
+
+        EditText price =
+                numberField("قیمت هر سهم");
+
+        EditText totalAmount =
+                numberField("مبلغ کل معامله");
+
+        EditText description =
+                field("توضیحات");
 
         box.addView(portfolio);
         box.addView(broker);
@@ -390,14 +400,20 @@ public class MainActivity extends Activity {
         box.addView(totalAmount);
         box.addView(description);
 
-        TextView info = new TextView(this);
+        TextView info =
+                new TextView(this);
 
         info.setText(
-                "\nتعداد، قیمت هر سهم و مبلغ کل می‌توانند به‌صورت خودکار محاسبه شوند.\n" +
-                "کارمزد جداگانه محاسبه می‌شود و داخل قیمت معامله نمی‌رود."
+                "\nتعداد، قیمت هر سهم و مبلغ کل می‌توانند " +
+                "به‌صورت خودکار محاسبه شوند.\n" +
+                "جداکننده هزارگان هنگام ورود عدد فعال است.\n" +
+                "کارمزد جداگانه محاسبه می‌شود."
         );
 
-        info.setPadding(0, 10, 0, 10);
+        info.setPadding(
+                0, 10, 0, 10
+        );
+
         box.addView(info);
 
         addAutoCalculation(
@@ -410,9 +426,18 @@ public class MainActivity extends Activity {
                 new AlertDialog.Builder(this)
                         .setTitle("ثبت خرید / فروش")
                         .setView(box)
-                        .setNegativeButton("انصراف", null)
-                        .setPositiveButton("خرید", null)
-                        .setNeutralButton("فروش", null)
+                        .setNegativeButton(
+                                "انصراف",
+                                null
+                        )
+                        .setPositiveButton(
+                                "خرید",
+                                null
+                        )
+                        .setNeutralButton(
+                                "فروش",
+                                null
+                        )
                         .create();
 
         dialog.setOnShowListener(d -> {
@@ -429,7 +454,8 @@ public class MainActivity extends Activity {
                         quantity,
                         price,
                         totalAmount,
-                        description)) {
+                        description
+                )) {
 
                     dialog.dismiss();
                 }
@@ -447,7 +473,8 @@ public class MainActivity extends Activity {
                         quantity,
                         price,
                         totalAmount,
-                        description)) {
+                        description
+                )) {
 
                     dialog.dismiss();
                 }
@@ -457,43 +484,286 @@ public class MainActivity extends Activity {
         dialog.show();
     }
 
+    // =========================================================
+    // NUMBER FORMATTING
+    // =========================================================
+
+    /*
+     * جداکننده هزارگان همزمان با تایپ
+     *
+     * نکته مهم:
+     * این Watcher هیچ محاسبه دیگری انجام نمی‌دهد.
+     * بنابراین هنگام تایپ عدد بزرگ، حلقه ایجاد نمی‌شود.
+     */
+    private void addThousandsFormatter(
+            EditText editText) {
+
+        editText.addTextChangedListener(
+                new TextWatcher() {
+
+                    private String previous = "";
+
+                    @Override
+                    public void beforeTextChanged(
+                            CharSequence s,
+                            int start,
+                            int count,
+                            int after) {
+
+                        previous = s.toString();
+                    }
+
+                    @Override
+                    public void onTextChanged(
+                            CharSequence s,
+                            int start,
+                            int before,
+                            int count) {
+                    }
+
+                    @Override
+                    public void afterTextChanged(
+                            Editable editable) {
+
+                        if (formattingNumber) {
+                            return;
+                        }
+
+                        String current =
+                                editable.toString();
+
+                        if (current.isEmpty()) {
+                            return;
+                        }
+
+                        /*
+                         * محل کرسر قبل از فرمت
+                         */
+                        int cursor =
+                                editText.getSelectionStart();
+
+                        if (cursor < 0) {
+                            cursor = current.length();
+                        }
+
+                        /*
+                         * تعداد ارقام قبل از کرسر
+                         */
+                        int digitsBeforeCursor = 0;
+
+                        for (int i = 0;
+                             i < Math.min(
+                                     cursor,
+                                     current.length()
+                             );
+                             i++) {
+
+                            char c =
+                                    current.charAt(i);
+
+                            if (Character.isDigit(c)) {
+                                digitsBeforeCursor++;
+                            }
+                        }
+
+                        String clean =
+                                cleanNumberText(current);
+
+                        /*
+                         * اگر فقط علامت منفی/نقطه بود
+                         * فعلاً دست نمی‌زنیم.
+                         */
+                        if (clean.isEmpty()) {
+                            return;
+                        }
+
+                        String formatted =
+                                formatInputNumber(clean);
+
+                        if (formatted.equals(current)) {
+                            return;
+                        }
+
+                        formattingNumber = true;
+
+                        editText.setText(formatted);
+
+                        int newCursor =
+                                cursorForDigitPosition(
+                                        formatted,
+                                        digitsBeforeCursor
+                                );
+
+                        try {
+
+                            editText.setSelection(
+                                    Math.max(
+                                            0,
+                                            Math.min(
+                                                    newCursor,
+                                                    formatted.length()
+                                            )
+                                    )
+                            );
+
+                        } catch (Exception ignored) {
+                        }
+
+                        formattingNumber = false;
+                    }
+                }
+        );
+    }
+
+    /*
+     * حذف جداکننده‌ها و تبدیل ارقام فارسی
+     */
+    private String cleanNumberText(
+            String value) {
+
+        if (value == null) {
+            return "";
+        }
+
+        return value
+                .replace(",", "")
+                .replace("٬", "")
+                .replace("٫", ".")
+                .replace(" ", "")
+                .replace("۰", "0")
+                .replace("۱", "1")
+                .replace("۲", "2")
+                .replace("۳", "3")
+                .replace("۴", "4")
+                .replace("۵", "5")
+                .replace("۶", "6")
+                .replace("۷", "7")
+                .replace("۸", "8")
+                .replace("۹", "9");
+    }
+
+    /*
+     * فرمت عدد با جداکننده هزارگان
+     */
+    private String formatInputNumber(
+            String clean) {
+
+        try {
+
+            if (clean.contains(".")) {
+
+                double value =
+                        Double.parseDouble(clean);
+
+                return String.format(
+                        Locale.US,
+                        "%,.4f",
+                        value
+                ).replaceAll(
+                        "0+$",
+                        ""
+                ).replaceAll(
+                        "\\.$",
+                        ""
+                );
+            }
+
+            long value =
+                    Long.parseLong(clean);
+
+            return String.format(
+                    Locale.US,
+                    "%,d",
+                    value
+            );
+
+        } catch (Exception e) {
+
+            return clean;
+        }
+    }
+
+    /*
+     * پیدا کردن مکان کرسر بعد از اضافه شدن
+     * جداکننده‌های هزارگان
+     */
+    private int cursorForDigitPosition(
+            String formatted,
+            int digitPosition) {
+
+        if (digitPosition <= 0) {
+            return 0;
+        }
+
+        int digits = 0;
+
+        for (int i = 0;
+             i < formatted.length();
+             i++) {
+
+            if (Character.isDigit(
+                    formatted.charAt(i)
+            )) {
+
+                digits++;
+
+                if (digits >= digitPosition) {
+                    return i + 1;
+                }
+            }
+        }
+
+        return formatted.length();
+    }
+
+    // =========================================================
+    // AUTO CALCULATION
+    // =========================================================
+
     private void addAutoCalculation(
             EditText quantity,
             EditText price,
             EditText total) {
 
-        TextWatcher watcher = new TextWatcher() {
+        TextWatcher watcher =
+                new TextWatcher() {
 
-            @Override
-            public void beforeTextChanged(
-                    CharSequence s,
-                    int start,
-                    int count,
-                    int after) {
-            }
+                    @Override
+                    public void beforeTextChanged(
+                            CharSequence s,
+                            int start,
+                            int count,
+                            int after) {
+                    }
 
-            @Override
-            public void onTextChanged(
-                    CharSequence s,
-                    int start,
-                    int before,
-                    int count) {
+                    @Override
+                    public void onTextChanged(
+                            CharSequence s,
+                            int start,
+                            int before,
+                            int count) {
 
-                if (calculatingFields) {
-                    return;
-                }
+                        if (formattingNumber ||
+                                calculatingFields) {
+                            return;
+                        }
 
-                calculateTradeFields(
-                        quantity,
-                        price,
-                        total
-                );
-            }
+                        /*
+                         * فقط بعد از تغییر واقعی،
+                         * محاسبه انجام می‌شود.
+                         */
+                        calculateTradeFields(
+                                quantity,
+                                price,
+                                total
+                        );
+                    }
 
-            @Override
-            public void afterTextChanged(Editable s) {
-            }
-        };
+                    @Override
+                    public void afterTextChanged(
+                            Editable s) {
+                    }
+                };
 
         quantity.addTextChangedListener(watcher);
         price.addTextChangedListener(watcher);
@@ -505,7 +775,8 @@ public class MainActivity extends Activity {
             EditText price,
             EditText total) {
 
-        if (calculatingFields) {
+        if (calculatingFields ||
+                formattingNumber) {
             return;
         }
 
@@ -513,22 +784,31 @@ public class MainActivity extends Activity {
         double p = number(price);
         double t = number(total);
 
+        /*
+         * بسیار مهم:
+         *
+         * اگر دو فیلد پر باشند، فقط فیلد سوم
+         * محاسبه می‌شود.
+         *
+         * به این ترتیب فیلد در حال تایپ
+         * دائماً بازنویسی نمی‌شود.
+         */
         try {
 
             calculatingFields = true;
 
             if (q > 0 && p > 0) {
 
-                setTextIfDifferent(
+                setFormattedText(
                         total,
-                        formatNumber(q * p)
+                        q * p
                 );
 
             } else if (q > 0 && t > 0) {
 
-                setTextIfDifferent(
+                setFormattedText(
                         price,
-                        formatNumber(t / q)
+                        t / q
                 );
 
             } else if (p > 0 && t > 0) {
@@ -538,16 +818,17 @@ public class MainActivity extends Activity {
 
                 if (calculatedQuantity > 0) {
 
-                    setTextIfDifferent(
+                    setFormattedText(
                             quantity,
-                            formatNumber(calculatedQuantity)
+                            calculatedQuantity
                     );
 
-                    setTextIfDifferent(
+                    /*
+                     * مبلغ واقعی بر اساس تعداد کامل
+                     */
+                    setFormattedText(
                             total,
-                            formatNumber(
-                                    calculatedQuantity * p
-                            )
+                            calculatedQuantity * p
                     );
                 }
             }
@@ -558,17 +839,34 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void setTextIfDifferent(
+    private void setFormattedText(
             EditText field,
-            String value) {
+            double value) {
 
-        String old =
-                field.getText().toString();
+        String newValue =
+                formatNumber(value);
 
-        if (!old.equals(value)) {
+        String oldValue =
+                field.getText()
+                        .toString();
 
-            field.setText(value);
-            field.setSelection(field.length());
+        if (oldValue.equals(newValue)) {
+            return;
+        }
+
+        formattingNumber = true;
+
+        try {
+
+            field.setText(newValue);
+
+            field.setSelection(
+                    field.length()
+            );
+
+        } finally {
+
+            formattingNumber = false;
         }
     }
 
@@ -583,16 +881,24 @@ public class MainActivity extends Activity {
             EditText descriptionField) {
 
         String portfolio =
-                portfolioField.getText().toString().trim();
+                portfolioField.getText()
+                        .toString()
+                        .trim();
 
         String broker =
-                brokerField.getText().toString().trim();
+                brokerField.getText()
+                        .toString()
+                        .trim();
 
         String symbol =
-                symbolField.getText().toString().trim();
+                symbolField.getText()
+                        .toString()
+                        .trim();
 
         String description =
-                descriptionField.getText().toString().trim();
+                descriptionField.getText()
+                        .toString()
+                        .trim();
 
         double quantity =
                 number(quantityField);
@@ -639,14 +945,16 @@ public class MainActivity extends Activity {
 
                 toastLong(
                         "فروش ثبت نشد.\n" +
-                        "از نماد " + symbol +
+                        "از نماد " +
+                        symbol +
                         " موجودی ندارید."
                 );
 
                 return false;
             }
 
-            if (quantity > available + 0.0000001) {
+            if (quantity >
+                    available + 0.0000001) {
 
                 toastLong(
                         "فروش ثبت نشد.\n" +
@@ -686,10 +994,13 @@ public class MainActivity extends Activity {
                     "خرید ثبت شد\n" +
                     "مبلغ معامله: " +
                     money(amount) +
-                    "\nکارمزد: " +
+                    " تومان\n" +
+                    "کارمزد: " +
                     money(fee) +
-                    "\nپرداخت نهایی: " +
-                    money(amount + fee)
+                    " تومان\n" +
+                    "پرداخت نهایی: " +
+                    money(amount + fee) +
+                    " تومان"
             );
 
         } else {
@@ -698,15 +1009,22 @@ public class MainActivity extends Activity {
                     "فروش ثبت شد\n" +
                     "مبلغ معامله: " +
                     money(amount) +
-                    "\nکارمزد: " +
+                    " تومان\n" +
+                    "کارمزد: " +
                     money(fee) +
-                    "\nدریافتی خالص: " +
-                    money(amount - fee)
+                    " تومان\n" +
+                    "دریافتی خالص: " +
+                    money(amount - fee) +
+                    " تومان"
             );
         }
 
         return true;
     }
+
+    // =========================================================
+    // DEPOSIT / WITHDRAW
+    // =========================================================
 
     private void showMoneyDialog(String type) {
 
@@ -727,7 +1045,7 @@ public class MainActivity extends Activity {
         portfolio.setText("اصلی");
 
         EditText amount =
-                field("مبلغ");
+                numberField("مبلغ");
 
         EditText description =
                 field("توضیحات");
@@ -745,8 +1063,14 @@ public class MainActivity extends Activity {
                 new AlertDialog.Builder(this)
                         .setTitle(title)
                         .setView(box)
-                        .setNegativeButton("انصراف", null)
-                        .setPositiveButton("ثبت", null)
+                        .setNegativeButton(
+                                "انصراف",
+                                null
+                        )
+                        .setPositiveButton(
+                                "ثبت",
+                                null
+                        )
                         .create();
 
         dialog.setOnShowListener(d -> {
@@ -796,6 +1120,10 @@ public class MainActivity extends Activity {
         dialog.show();
     }
 
+    // =========================================================
+    // PORTFOLIOS
+    // =========================================================
+
     private void showPortfolioDialog() {
 
         Cursor cursor =
@@ -819,14 +1147,20 @@ public class MainActivity extends Activity {
                 portfolio = "اصلی";
             }
 
-            active.put(portfolio, true);
+            active.put(
+                    portfolio,
+                    true
+            );
         }
 
         cursor.close();
 
         if (active.isEmpty()) {
 
-            toast("هنوز سبدی ثبت نشده است");
+            toast(
+                    "هنوز سبدی ثبت نشده است"
+            );
+
             return;
         }
 
@@ -845,28 +1179,35 @@ public class MainActivity extends Activity {
                 new TextView(this);
 
         title.setText(
-                "سبدهای فعال\nبرای ورود، روی سبد بزنید."
+                "سبدهای فعال\n" +
+                "برای ورود، روی سبد بزنید."
         );
 
         title.setTextSize(18);
-        title.setPadding(0, 0, 0, 20);
+        title.setPadding(
+                0, 0, 0, 20
+        );
 
         box.addView(title);
 
-        for (String portfolio : active.keySet()) {
+        for (String portfolio :
+                active.keySet()) {
 
             Button b =
                     new Button(this);
 
-            b.setText("📁 " + portfolio);
+            b.setText(
+                    "📁 " + portfolio
+            );
 
             String selectedPortfolio =
                     portfolio;
 
             b.setOnClickListener(
-                    v -> showPortfolioSymbolsDialog(
-                            selectedPortfolio
-                    )
+                    v ->
+                            showPortfolioSymbolsDialog(
+                                    selectedPortfolio
+                            )
             );
 
             box.addView(b);
@@ -875,7 +1216,10 @@ public class MainActivity extends Activity {
         new AlertDialog.Builder(this)
                 .setTitle("وضعیت سبدها")
                 .setView(box)
-                .setPositiveButton("بستن", null)
+                .setPositiveButton(
+                        "بستن",
+                        null
+                )
                 .show();
     }
 
@@ -906,12 +1250,14 @@ public class MainActivity extends Activity {
         );
 
         header.setTextSize(18);
+
         box.addView(header);
 
         boolean found = false;
 
-        for (Map.Entry<String, PortfolioEngine.Position> entry
-                : positions.entrySet()) {
+        for (Map.Entry<String,
+                PortfolioEngine.Position> entry :
+                positions.entrySet()) {
 
             PortfolioEngine.Position position =
                     entry.getValue();
@@ -941,10 +1287,11 @@ public class MainActivity extends Activity {
                     position.symbol;
 
             symbolButton.setOnClickListener(
-                    v -> showSymbolTransactionsDialog(
-                            portfolioName,
-                            selectedSymbol
-                    )
+                    v ->
+                            showSymbolTransactionsDialog(
+                                    portfolioName,
+                                    selectedSymbol
+                            )
             );
 
             box.addView(symbolButton);
@@ -973,9 +1320,16 @@ public class MainActivity extends Activity {
                         portfolioName
                 )
                 .setView(scroll)
-                .setPositiveButton("بستن", null)
+                .setPositiveButton(
+                        "بستن",
+                        null
+                )
                 .show();
     }
+
+    // =========================================================
+    // SYMBOL DETAILS
+    // =========================================================
 
     private void showSymbolTransactionsDialog(
             String portfolioName,
@@ -1042,11 +1396,14 @@ public class MainActivity extends Activity {
         );
 
         transactionsTitle.setTextSize(18);
+
         transactionsTitle.setPadding(
                 0, 10, 0, 10
         );
 
-        box.addView(transactionsTitle);
+        box.addView(
+                transactionsTitle
+        );
 
         double totalBuyAmount = 0;
         double totalBuyFee = 0;
@@ -1079,7 +1436,8 @@ public class MainActivity extends Activity {
                     );
 
             if (portfolio == null ||
-                    !portfolioName.equals(portfolio)) {
+                    !portfolioName.equals(
+                            portfolio)) {
                 continue;
             }
 
@@ -1137,14 +1495,16 @@ public class MainActivity extends Activity {
 
             if ("BUY".equals(type)) {
 
-                finalAmount = amount + fee;
+                finalAmount =
+                        amount + fee;
 
                 totalBuyAmount += amount;
                 totalBuyFee += fee;
 
             } else {
 
-                finalAmount = amount - fee;
+                finalAmount =
+                        amount - fee;
 
                 totalSellAmount += amount;
                 totalSellFee += fee;
@@ -1180,6 +1540,7 @@ public class MainActivity extends Activity {
             );
 
             item.setTextSize(15);
+
             item.setPadding(
                     0, 12, 0, 12
             );
@@ -1229,6 +1590,7 @@ public class MainActivity extends Activity {
             );
 
             totals.setTextSize(16);
+
             totals.setPadding(
                     0, 15, 0, 15
             );
@@ -1247,17 +1609,26 @@ public class MainActivity extends Activity {
                         " | جزئیات معاملات"
                 )
                 .setView(scroll)
-                .setPositiveButton("بستن", null)
+                .setPositiveButton(
+                        "بستن",
+                        null
+                )
                 .show();
     }
 
-    private Map<String, PortfolioEngine.Position>
+    // =========================================================
+    // POSITION ENGINE
+    // =========================================================
+
+    private Map<String,
+            PortfolioEngine.Position>
             calculatePositions() {
 
         Cursor cursor =
                 db.getAllTransactions();
 
-        Map<String, PortfolioEngine.Position> result =
+        Map<String,
+                PortfolioEngine.Position> result =
                 PortfolioEngine.calculate(cursor);
 
         cursor.close();
@@ -1265,14 +1636,16 @@ public class MainActivity extends Activity {
         return result;
     }
 
-    private Map<String, PortfolioEngine.Position>
+    private Map<String,
+            PortfolioEngine.Position>
             calculatePositionsExcludingTransaction(
                     long excludedId) {
 
         Cursor cursor =
                 db.getAllTransactions();
 
-        Map<String, PortfolioEngine.Position> positions =
+        Map<String,
+                PortfolioEngine.Position> positions =
                 new LinkedHashMap<>();
 
         while (cursor.moveToNext()) {
@@ -1311,16 +1684,20 @@ public class MainActivity extends Activity {
 
             if (portfolio == null ||
                     portfolio.trim().isEmpty()) {
+
                 portfolio = "اصلی";
             }
 
             if (symbol == null ||
                     symbol.trim().isEmpty()) {
+
                 continue;
             }
 
             String key =
-                    portfolio + "|" + symbol;
+                    portfolio +
+                    "|" +
+                    symbol;
 
             PortfolioEngine.Position position =
                     positions.get(key);
@@ -1333,7 +1710,10 @@ public class MainActivity extends Activity {
                                 symbol
                         );
 
-                positions.put(key, position);
+                positions.put(
+                        key,
+                        position
+                );
             }
 
             double quantity =
@@ -1359,14 +1739,20 @@ public class MainActivity extends Activity {
 
             if ("BUY".equals(type)) {
 
-                position.buyQuantity += quantity;
-                position.buyAmount += amount;
-                position.buyFees += fee;
+                position.buyQuantity +=
+                        quantity;
+
+                position.buyAmount +=
+                        amount;
+
+                position.buyFees +=
+                        fee;
 
                 position.cost +=
                         amount + fee;
 
-                position.quantity += quantity;
+                position.quantity +=
+                        quantity;
 
             } else if ("SELL".equals(type)) {
 
@@ -1384,11 +1770,13 @@ public class MainActivity extends Activity {
                         position.averagePrice();
 
                 double costOfSold =
-                        sellQuantity * average;
+                        sellQuantity *
+                        average;
 
                 double ratio =
                         quantity > 0
-                                ? sellQuantity / quantity
+                                ? sellQuantity /
+                                quantity
                                 : 0;
 
                 double effectiveFee =
@@ -1417,7 +1805,8 @@ public class MainActivity extends Activity {
                 position.quantity -=
                         sellQuantity;
 
-                if (position.quantity < 0.0000001) {
+                if (position.quantity <
+                        0.0000001) {
 
                     position.quantity = 0;
                     position.cost = 0;
@@ -1429,6 +1818,10 @@ public class MainActivity extends Activity {
 
         return positions;
     }
+
+    // =========================================================
+    // HISTORY
+    // =========================================================
 
     private void showHistoryDialog() {
 
@@ -1536,7 +1929,8 @@ public class MainActivity extends Activity {
                 );
 
                 item.setOnClickListener(
-                        v -> showTransactionActions(id)
+                        v ->
+                                showTransactionActions(id)
                 );
 
             } else {
@@ -1586,11 +1980,19 @@ public class MainActivity extends Activity {
                         "برای ویرایش یا حذف روی معامله بزنید."
                 )
                 .setView(scroll)
-                .setPositiveButton("بستن", null)
+                .setPositiveButton(
+                        "بستن",
+                        null
+                )
                 .show();
     }
 
-    private void showTransactionActions(long id) {
+    // =========================================================
+    // EDIT / DELETE
+    // =========================================================
+
+    private void showTransactionActions(
+            long id) {
 
         Cursor cursor =
                 db.getTransaction(id);
@@ -1628,6 +2030,7 @@ public class MainActivity extends Activity {
             toast(
                     "این مورد معامله خرید/فروش نیست."
             );
+
             return;
         }
 
@@ -1646,11 +2049,15 @@ public class MainActivity extends Activity {
 
                             if (which == 0) {
 
-                                showEditTransactionDialog(id);
+                                showEditTransactionDialog(
+                                        id
+                                );
 
                             } else if (which == 1) {
 
-                                confirmDeleteTransaction(id);
+                                confirmDeleteTransaction(
+                                        id
+                                );
                             }
                         }
                 )
@@ -1758,25 +2165,26 @@ public class MainActivity extends Activity {
         );
 
         EditText quantity =
-                field("تعداد سهم");
+                numberField("تعداد سهم");
 
         quantity.setText(
                 formatNumber(quantityValue)
         );
 
         EditText price =
-                field("قیمت هر سهم");
+                numberField("قیمت هر سهم");
 
         price.setText(
                 formatNumber(priceValue)
         );
 
         EditText total =
-                field("مبلغ کل معامله");
+                numberField("مبلغ کل معامله");
 
         total.setText(
                 formatNumber(
-                        quantityValue * priceValue
+                        quantityValue *
+                        priceValue
                 )
         );
 
@@ -1919,11 +2327,16 @@ public class MainActivity extends Activity {
 
         if ("SELL".equals(type)) {
 
-            Map<String, PortfolioEngine.Position> positions =
-                    calculatePositionsExcludingTransaction(id);
+            Map<String,
+                    PortfolioEngine.Position> positions =
+                    calculatePositionsExcludingTransaction(
+                            id
+                    );
 
             String key =
-                    portfolio + "|" + symbol;
+                    portfolio +
+                    "|" +
+                    symbol;
 
             PortfolioEngine.Position position =
                     positions.get(key);
@@ -1990,8 +2403,10 @@ public class MainActivity extends Activity {
                 "معامله اصلاح شد\n" +
                 "مبلغ معامله: " +
                 money(amount) +
-                "\nکارمزد: " +
-                money(fee)
+                " تومان\n" +
+                "کارمزد: " +
+                money(fee) +
+                " تومان"
         );
 
         return true;
@@ -2070,6 +2485,10 @@ public class MainActivity extends Activity {
                 .show();
     }
 
+    // =========================================================
+    // SEARCH
+    // =========================================================
+
     private void showSearchDialog() {
 
         EditText search =
@@ -2100,7 +2519,9 @@ public class MainActivity extends Activity {
             String query) {
 
         if (query.isEmpty()) {
-            toast("عبارت جستجو را وارد کنید");
+            toast(
+                    "عبارت جستجو را وارد کنید"
+            );
             return;
         }
 
@@ -2214,6 +2635,10 @@ public class MainActivity extends Activity {
                 .show();
     }
 
+    // =========================================================
+    // CASH
+    // =========================================================
+
     private void showCashBalance() {
 
         double balance =
@@ -2232,6 +2657,10 @@ public class MainActivity extends Activity {
                 .show();
     }
 
+    // =========================================================
+    // NUMBER PARSING
+    // =========================================================
+
     private double number(
             EditText field) {
 
@@ -2247,21 +2676,13 @@ public class MainActivity extends Activity {
             }
 
             value =
-                    value.replace(",", "")
-                            .replace("٬", "")
-                            .replace("٫", ".");
+                    cleanNumberText(value);
 
-            value =
-                    value.replace("۰", "0")
-                            .replace("۱", "1")
-                            .replace("۲", "2")
-                            .replace("۳", "3")
-                            .replace("۴", "4")
-                            .replace("۵", "5")
-                            .replace("۶", "6")
-                            .replace("۷", "7")
-                            .replace("۸", "8")
-                            .replace("۹", "9");
+            if (value.isEmpty() ||
+                    ".".equals(value)) {
+
+                return 0;
+            }
 
             return Double.parseDouble(value);
 
@@ -2271,6 +2692,9 @@ public class MainActivity extends Activity {
         }
     }
 
+    /*
+     * نمایش عدد با جداکننده هزارگان
+     */
     private String money(
             double value) {
 
@@ -2281,6 +2705,11 @@ public class MainActivity extends Activity {
         );
     }
 
+    /*
+     * فرمت عمومی اعداد:
+     * 2500 -> 2,500
+     * 120000000 -> 120,000,000
+     */
     private String formatNumber(
             double value) {
 
@@ -2291,17 +2720,29 @@ public class MainActivity extends Activity {
 
             return String.format(
                     Locale.US,
-                    "%.0f",
+                    "%,.0f",
                     value
             );
         }
 
         return String.format(
                 Locale.US,
-                "%.4f",
+                "%,.4f",
                 value
-        );
+        )
+                .replaceAll(
+                        "0+$",
+                        ""
+                )
+                .replaceAll(
+                        "\\.$",
+                        ""
+                );
     }
+
+    // =========================================================
+    // HELPERS
+    // =========================================================
 
     private String safe(
             String value) {
@@ -2311,7 +2752,8 @@ public class MainActivity extends Activity {
                 : value;
     }
 
-    private void toast(String message) {
+    private void toast(
+            String message) {
 
         android.widget.Toast.makeText(
                 this,
@@ -2320,7 +2762,8 @@ public class MainActivity extends Activity {
         ).show();
     }
 
-    private void toastLong(String message) {
+    private void toastLong(
+            String message) {
 
         android.widget.Toast.makeText(
                 this,
