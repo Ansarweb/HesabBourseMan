@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F5F7FA">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:id="@+id/title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="حساب بورس"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:textColor="#17212B"
+            android:gravity="right"/>
+
+        <TextView
+            android:id="@+id/subtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="مدیریت سرمایه، معاملات و سود و زیان"
+            android:textSize="14sp"
+            android:textColor="#607080"
+            android:gravity="right"
+            android:layout_marginBottom="16dp"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/cashCard"
+                android:layout_width="0dp"
+                android:layout_height="90dp"
+                android:layout_weight="1"
+                android:padding="14dp"
+                android:background="#FFFFFF"
+                android:text="نقدینگی&#10;۰ تومان"
+                android:textSize="16sp"
+                android:textColor="#17212B"
+                android:gravity="right"/>
+
+            <Space
+                android:layout_width="10dp"
+                android:layout_height="1dp"/>
+
+            <TextView
+                android:id="@+id/portfolioCard"
+                android:layout_width="0dp"
+                android:layout_height="90dp"
+                android:layout_weight="1"
+                android:padding="14dp"
+                android:background="#FFFFFF"
+                android:text="ارزش پرتفوی&#10;۰ تومان"
+                android:textSize="16sp"
+                android:textColor="#17212B"
+                android:gravity="right"/>
+
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/addTrade"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="＋ ثبت معامله"
+            android:layout_marginTop="18dp"/>
+
+        <Button
+            android:id="@+id/addDeposit"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="＋ واریز به کارگزاری"/>
+
+        <Button
+            android:id="@+id/addWithdraw"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="− برداشت"/>
+
+        <Button
+            android:id="@+id/voiceButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="🎙 ورود صوتی معامله"/>
+
+        <TextView
+            android:id="@+id/transactionsTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="آخرین معاملات"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="#17212B"
+            android:gravity="right"
+            android:layout_marginTop="20dp"/>
+
+        <TextView
+            android:id="@+id/transactions"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="12dp"
+            android:background="#FFFFFF"
+            android:text="هنوز معامله‌ای ثبت نشده است."
+            android:textSize="15sp"
+            android:textColor="#334455"
+            android:gravity="right"/>
+
+    </LinearLayout>
+
+</ScrollView>
