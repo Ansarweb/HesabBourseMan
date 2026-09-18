@@ -2,95 +2,161 @@ package ir.ansarweb.hesabbourse;
 
 import android.database.Cursor;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class PortfolioEngine {
 
     public static class Position {
 
+        public String portfolio;
+        public String symbol;
+
         public double quantity;
         public double cost;
+
         public double realizedProfit;
+
+        public Position(String portfolio, String symbol) {
+            this.portfolio = portfolio;
+            this.symbol = symbol;
+        }
 
         public double averagePrice() {
             if (quantity <= 0) {
                 return 0;
             }
+
             return cost / quantity;
         }
     }
 
     public static Map<String, Position> calculate(Cursor cursor) {
 
-        Map<String, Position> positions = new HashMap<>();
+        Map<String, Position> positions =
+                new LinkedHashMap<>();
 
         while (cursor.moveToNext()) {
 
-            String type = cursor.getString(
-                    cursor.getColumnIndexOrThrow("type")
-            );
+            String type =
+                    cursor.getString(
+                            cursor.getColumnIndexOrThrow("type")
+                    );
 
-            String symbol = cursor.getString(
-                    cursor.getColumnIndexOrThrow("symbol")
-            );
+            String portfolio =
+                    cursor.getString(
+                            cursor.getColumnIndexOrThrow("portfolio")
+                    );
 
-            if (symbol == null || symbol.trim().isEmpty()) {
+            String symbol =
+                    cursor.getString(
+                            cursor.getColumnIndexOrThrow("symbol")
+                    );
+
+            if (portfolio == null
+                    || portfolio.trim().isEmpty()) {
+
+                portfolio = "اصلی";
+            }
+
+            if (symbol == null
+                    || symbol.trim().isEmpty()) {
+
                 continue;
             }
 
-            double quantity = cursor.getDouble(
-                    cursor.getColumnIndexOrThrow("quantity")
-            );
+            String key =
+                    portfolio + "|" + symbol;
 
-            double price = cursor.getDouble(
-                    cursor.getColumnIndexOrThrow("price")
-            );
-
-            double fee = cursor.getDouble(
-                    cursor.getColumnIndexOrThrow("fee")
-            );
-
-            Position position = positions.get(symbol);
+            Position position =
+                    positions.get(key);
 
             if (position == null) {
-                position = new Position();
-                positions.put(symbol, position);
+
+                position =
+                        new Position(
+                                portfolio,
+                                symbol
+                        );
+
+                positions.put(
+                        key,
+                        position
+                );
             }
 
+            double quantity =
+                    cursor.getDouble(
+                            cursor.getColumnIndexOrThrow(
+                                    "quantity"
+                            )
+                    );
+
+            double price =
+                    cursor.getDouble(
+                            cursor.getColumnIndexOrThrow(
+                                    "price"
+                            )
+                    );
+
+            double fee =
+                    cursor.getDouble(
+                            cursor.getColumnIndexOrThrow(
+                                    "fee"
+                            )
+                    );
+
+            /*
+             * خرید
+             */
             if ("BUY".equals(type)) {
 
-                position.cost +=
+                double buyCost =
                         (quantity * price) + fee;
 
-                position.quantity += quantity;
+                position.cost += buyCost;
 
-            } else if ("SELL".equals(type)) {
+                position.quantity += quantity;
+            }
+
+            /*
+             * فروش
+             */
+            else if ("SELL".equals(type)) {
+
+                if (position.quantity <= 0) {
+                    continue;
+                }
 
                 double sellQuantity =
-                        Math.min(quantity, position.quantity);
+                        Math.min(
+                                quantity,
+                                position.quantity
+                        );
 
                 double average =
                         position.averagePrice();
 
-                double sellValue =
+                double saleValue =
                         sellQuantity * price;
 
                 double costOfSold =
                         sellQuantity * average;
 
-                position.realizedProfit +=
-                        sellValue - costOfSold - fee;
+                double profit =
+                        saleValue
+                                - costOfSold
+                                - fee;
+
+                position.realizedProfit += profit;
 
                 position.cost -= costOfSold;
 
                 position.quantity -= sellQuantity;
 
-                if (position.quantity < 0) {
-                    position.quantity = 0;
-                }
+                if (position.quantity < 0.0000001) {
 
-                if (position.cost < 0) {
+                    position.quantity = 0;
                     position.cost = 0;
                 }
             }
