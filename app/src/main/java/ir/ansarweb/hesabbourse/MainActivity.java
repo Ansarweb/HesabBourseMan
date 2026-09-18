@@ -5,19 +5,15 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
-import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
-import android.widget.Toast;
-
 import android.database.Cursor;
+import android.view.View;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -91,10 +87,12 @@ public class MainActivity extends Activity {
     }
 
     private EditText field(String hint) {
+
         EditText e = new EditText(this);
         e.setHint(hint);
         e.setSingleLine(true);
         e.setPadding(16, 12, 16, 12);
+
         return e;
     }
 
@@ -108,15 +106,10 @@ public class MainActivity extends Activity {
         portfolio.setText("اصلی");
 
         EditText broker = field("کارگزاری");
-
         EditText symbol = field("نماد");
-
         EditText quantity = field("تعداد سهم");
-
         EditText price = field("قیمت هر سهم");
-
         EditText totalAmount = field("مبلغ کل معامله");
-
         EditText description = field("توضیحات");
 
         box.addView(portfolio);
@@ -128,66 +121,77 @@ public class MainActivity extends Activity {
         box.addView(description);
 
         TextView info = new TextView(this);
+
         info.setText(
-                "\nقیمت، تعداد و مبلغ کل به‌صورت خودکار از روی دو مقدار واردشده محاسبه می‌شوند.\n" +
+                "\nتعداد، قیمت هر سهم و مبلغ کل می‌توانند به‌صورت خودکار از روی دو مقدار محاسبه شوند.\n" +
                 "کارمزد جداگانه محاسبه می‌شود و داخل قیمت معامله نمی‌رود."
         );
+
         info.setPadding(0, 10, 0, 10);
+
         box.addView(info);
 
-        addAutoCalculation(quantity, price, totalAmount);
+        addAutoCalculation(
+                quantity,
+                price,
+                totalAmount
+        );
 
-        new AlertDialog.Builder(this)
-                .setTitle("ثبت خرید / فروش")
-                .setView(box)
-                .setNegativeButton("انصراف", null)
-                .setPositiveButton("خرید", null)
-                .setNeutralButton("فروش", null)
-                .create();
-
-        AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle("ثبت خرید / فروش")
-                .setView(box)
-                .setNegativeButton("انصراف", null)
-                .setPositiveButton("خرید", null)
-                .setNeutralButton("فروش", null)
-                .create();
+        AlertDialog dialog =
+                new AlertDialog.Builder(this)
+                        .setTitle("ثبت خرید / فروش")
+                        .setView(box)
+                        .setNegativeButton(
+                                "انصراف",
+                                null
+                        )
+                        .setPositiveButton(
+                                "خرید",
+                                null
+                        )
+                        .setNeutralButton(
+                                "فروش",
+                                null
+                        )
+                        .create();
 
         dialog.setOnShowListener(d -> {
 
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE)
-                    .setOnClickListener(v -> {
+            dialog.getButton(
+                    AlertDialog.BUTTON_POSITIVE
+            ).setOnClickListener(v -> {
 
-                        if (saveTrade(
-                                "BUY",
-                                portfolio,
-                                broker,
-                                symbol,
-                                quantity,
-                                price,
-                                totalAmount,
-                                description)) {
+                if (saveTrade(
+                        "BUY",
+                        portfolio,
+                        broker,
+                        symbol,
+                        quantity,
+                        price,
+                        totalAmount,
+                        description)) {
 
-                            dialog.dismiss();
-                        }
-                    });
+                    dialog.dismiss();
+                }
+            });
 
-            dialog.getButton(AlertDialog.BUTTON_NEUTRAL)
-                    .setOnClickListener(v -> {
+            dialog.getButton(
+                    AlertDialog.BUTTON_NEUTRAL
+            ).setOnClickListener(v -> {
 
-                        if (saveTrade(
-                                "SELL",
-                                portfolio,
-                                broker,
-                                symbol,
-                                quantity,
-                                price,
-                                totalAmount,
-                                description)) {
+                if (saveTrade(
+                        "SELL",
+                        portfolio,
+                        broker,
+                        symbol,
+                        quantity,
+                        price,
+                        totalAmount,
+                        description)) {
 
-                            dialog.dismiss();
-                        }
-                    });
+                    dialog.dismiss();
+                }
+            });
         });
 
         dialog.show();
@@ -222,11 +226,13 @@ public class MainActivity extends Activity {
                 calculateTradeFields(
                         quantity,
                         price,
-                        total);
+                        total
+                );
             }
 
             @Override
-            public void afterTextChanged(Editable s) {
+            public void afterTextChanged(
+                    Editable s) {
             }
         };
 
@@ -253,40 +259,42 @@ public class MainActivity extends Activity {
             calculatingFields = true;
 
             /*
-             * حالت ۱:
              * تعداد + قیمت
-             * مبلغ کل = تعداد × قیمت
+             * مبلغ = تعداد × قیمت
              */
             if (q > 0 && p > 0) {
 
-                double calculatedTotal = q * p;
+                double calculatedTotal =
+                        q * p;
 
                 setTextIfDifferent(
                         total,
-                        formatNumber(calculatedTotal));
+                        formatNumber(
+                                calculatedTotal
+                        )
+                );
             }
 
             /*
-             * حالت ۲:
-             * تعداد + مبلغ کل
-             * قیمت = مبلغ کل ÷ تعداد
+             * تعداد + مبلغ
+             * قیمت = مبلغ ÷ تعداد
              */
             else if (q > 0 && t > 0) {
 
-                double calculatedPrice = t / q;
+                double calculatedPrice =
+                        t / q;
 
                 setTextIfDifferent(
                         price,
-                        formatNumber(calculatedPrice));
+                        formatNumber(
+                                calculatedPrice
+                        )
+                );
             }
 
             /*
-             * حالت ۳:
-             * قیمت + مبلغ کل
-             * تعداد = کف(مبلغ کل ÷ قیمت)
-             *
-             * سپس مبلغ واقعی معامله
-             * بر اساس تعداد صحیح محاسبه می‌شود.
+             * قیمت + مبلغ
+             * تعداد = کف(مبلغ ÷ قیمت)
              */
             else if (p > 0 && t > 0) {
 
@@ -300,11 +308,17 @@ public class MainActivity extends Activity {
 
                     setTextIfDifferent(
                             quantity,
-                            formatNumber(calculatedQuantity));
+                            formatNumber(
+                                    calculatedQuantity
+                            )
+                    );
 
                     setTextIfDifferent(
                             total,
-                            formatNumber(calculatedTotal));
+                            formatNumber(
+                                    calculatedTotal
+                            )
+                    );
                 }
             }
 
@@ -318,9 +332,11 @@ public class MainActivity extends Activity {
             EditText field,
             String value) {
 
-        String old = field.getText().toString();
+        String old =
+                field.getText().toString();
 
         if (!old.equals(value)) {
+
             field.setText(value);
             field.setSelection(field.length());
         }
@@ -337,16 +353,28 @@ public class MainActivity extends Activity {
             EditText descriptionField) {
 
         String portfolio =
-                portfolioField.getText().toString().trim();
+                portfolioField
+                        .getText()
+                        .toString()
+                        .trim();
 
         String broker =
-                brokerField.getText().toString().trim();
+                brokerField
+                        .getText()
+                        .toString()
+                        .trim();
 
         String symbol =
-                symbolField.getText().toString().trim();
+                symbolField
+                        .getText()
+                        .toString()
+                        .trim();
 
         String description =
-                descriptionField.getText().toString().trim();
+                descriptionField
+                        .getText()
+                        .toString()
+                        .trim();
 
         double quantity =
                 number(quantityField);
@@ -354,39 +382,39 @@ public class MainActivity extends Activity {
         double price =
                 number(priceField);
 
-        double amount =
-                number(totalField);
-
         if (portfolio.isEmpty()) {
             portfolio = "اصلی";
         }
 
         if (symbol.isEmpty()) {
 
-            Toast.makeText(
+            android.widget.Toast.makeText(
                     this,
                     "نماد را وارد کنید",
-                    Toast.LENGTH_SHORT).show();
+                    android.widget.Toast.LENGTH_SHORT
+            ).show();
 
             return false;
         }
 
         if (quantity <= 0) {
 
-            Toast.makeText(
+            android.widget.Toast.makeText(
                     this,
                     "تعداد معتبر نیست",
-                    Toast.LENGTH_SHORT).show();
+                    android.widget.Toast.LENGTH_SHORT
+            ).show();
 
             return false;
         }
 
         if (price <= 0) {
 
-            Toast.makeText(
+            android.widget.Toast.makeText(
                     this,
                     "قیمت معتبر نیست",
-                    Toast.LENGTH_SHORT).show();
+                    android.widget.Toast.LENGTH_SHORT
+            ).show();
 
             return false;
         }
@@ -394,7 +422,8 @@ public class MainActivity extends Activity {
         /*
          * مبلغ معامله بدون کارمزد
          */
-        amount = quantity * price;
+        double amount =
+                quantity * price;
 
         /*
          * کارمزد جداگانه
@@ -402,9 +431,14 @@ public class MainActivity extends Activity {
         double fee;
 
         if ("BUY".equals(type)) {
-            fee = amount * BUY_FEE_RATE;
+
+            fee =
+                    amount * BUY_FEE_RATE;
+
         } else {
-            fee = amount * SELL_FEE_RATE;
+
+            fee =
+                    amount * SELL_FEE_RATE;
         }
 
         db.addTransactionWithDescription(
@@ -422,9 +456,14 @@ public class MainActivity extends Activity {
         double finalAmount;
 
         if ("BUY".equals(type)) {
-            finalAmount = amount + fee;
+
+            finalAmount =
+                    amount + fee;
+
         } else {
-            finalAmount = amount - fee;
+
+            finalAmount =
+                    amount - fee;
         }
 
         String message;
@@ -452,26 +491,36 @@ public class MainActivity extends Activity {
                     money(finalAmount);
         }
 
-        Toast.makeText(
+        android.widget.Toast.makeText(
                 this,
                 message,
-                Toast.LENGTH_LONG).show();
+                android.widget.Toast.LENGTH_LONG
+        ).show();
 
         return true;
     }
 
     private void showMoneyDialog(String type) {
 
-        LinearLayout box = new LinearLayout(this);
-        box.setOrientation(LinearLayout.VERTICAL);
-        box.setPadding(20, 10, 20, 10);
+        LinearLayout box =
+                new LinearLayout(this);
 
-        EditText portfolio = field("سبد / پرتفوی");
+        box.setOrientation(
+                LinearLayout.VERTICAL);
+
+        box.setPadding(
+                20, 10, 20, 10);
+
+        EditText portfolio =
+                field("سبد / پرتفوی");
+
         portfolio.setText("اصلی");
 
-        EditText amount = field("مبلغ");
+        EditText amount =
+                field("مبلغ");
 
-        EditText description = field("توضیحات");
+        EditText description =
+                field("توضیحات");
 
         box.addView(portfolio);
         box.addView(amount);
@@ -488,63 +537,67 @@ public class MainActivity extends Activity {
                         .setView(box)
                         .setNegativeButton(
                                 "انصراف",
-                                null)
+                                null
+                        )
                         .setPositiveButton(
                                 "ثبت",
-                                null)
+                                null
+                        )
                         .create();
 
         dialog.setOnShowListener(d -> {
 
             dialog.getButton(
-                    AlertDialog.BUTTON_POSITIVE)
-                    .setOnClickListener(v -> {
+                    AlertDialog.BUTTON_POSITIVE
+            ).setOnClickListener(v -> {
 
-                        double value =
-                                number(amount);
+                double value =
+                        number(amount);
 
-                        if (value <= 0) {
+                if (value <= 0) {
 
-                            Toast.makeText(
-                                    this,
-                                    "مبلغ معتبر نیست",
-                                    Toast.LENGTH_SHORT)
-                                    .show();
+                    android.widget.Toast.makeText(
+                            this,
+                            "مبلغ معتبر نیست",
+                            android.widget.Toast.LENGTH_SHORT
+                    ).show();
 
-                            return;
-                        }
+                    return;
+                }
 
-                        String p =
-                                portfolio.getText()
-                                        .toString()
-                                        .trim();
+                String p =
+                        portfolio
+                                .getText()
+                                .toString()
+                                .trim();
 
-                        if (p.isEmpty()) {
-                            p = "اصلی";
-                        }
+                if (p.isEmpty()) {
+                    p = "اصلی";
+                }
 
-                        db.addTransactionWithDescription(
-                                type,
-                                p,
-                                "",
-                                "",
-                                0,
-                                0,
-                                0,
-                                value,
-                                description.getText()
-                                        .toString()
-                                        .trim()
-                        );
+                db.addTransactionWithDescription(
+                        type,
+                        p,
+                        "",
+                        "",
+                        0,
+                        0,
+                        0,
+                        value,
+                        description
+                                .getText()
+                                .toString()
+                                .trim()
+                );
 
-                        Toast.makeText(
-                                this,
-                                "ثبت شد",
-                                Toast.LENGTH_SHORT)
-                                .show();
+                android.widget.Toast.makeText(
+                        this,
+                        "ثبت شد",
+                        android.widget.Toast.LENGTH_SHORT
+                ).show();
 
-                        dialog.dismiss();
-                    });
+                dialog.dismiss();
+            });
         });
 
         dialog.show();
@@ -563,7 +616,9 @@ public class MainActivity extends Activity {
             String portfolio =
                     cursor.getString(
                             cursor.getColumnIndexOrThrow(
-                                    "portfolio"));
+                                    "portfolio"
+                            )
+                    );
 
             if (portfolio == null ||
                     portfolio.trim().isEmpty()) {
@@ -571,18 +626,21 @@ public class MainActivity extends Activity {
                 portfolio = "اصلی";
             }
 
-            active.put(portfolio, true);
+            active.put(
+                    portfolio,
+                    true
+            );
         }
 
         cursor.close();
 
         if (active.isEmpty()) {
 
-            Toast.makeText(
+            android.widget.Toast.makeText(
                     this,
                     "هنوز سبدی ثبت نشده است",
-                    Toast.LENGTH_SHORT)
-                    .show();
+                    android.widget.Toast.LENGTH_SHORT
+            ).show();
 
             return;
         }
@@ -601,26 +659,35 @@ public class MainActivity extends Activity {
 
         title.setText(
                 "سبدهای فعال\n" +
-                "برای ورود، روی سبد بزنید.");
+                "برای ورود، روی سبد بزنید."
+        );
 
         title.setTextSize(18);
-        title.setPadding(0, 0, 0, 20);
+        title.setPadding(
+                0, 0, 0, 20
+        );
 
         box.addView(title);
 
-        for (String portfolio : active.keySet()) {
+        for (String portfolio :
+                active.keySet()) {
 
             Button b =
                     new Button(this);
 
-            b.setText("📁 " + portfolio);
+            b.setText(
+                    "📁 " + portfolio
+            );
 
             String selectedPortfolio =
                     portfolio;
 
             b.setOnClickListener(
-                    v -> showPortfolioSymbolsDialog(
-                            selectedPortfolio));
+                    v ->
+                            showPortfolioSymbolsDialog(
+                                    selectedPortfolio
+                            )
+            );
 
             box.addView(b);
         }
@@ -630,7 +697,8 @@ public class MainActivity extends Activity {
                 .setView(box)
                 .setPositiveButton(
                         "بستن",
-                        null)
+                        null
+                )
                 .show();
     }
 
@@ -656,7 +724,8 @@ public class MainActivity extends Activity {
         header.setText(
                 "سبد: " +
                 portfolioName +
-                "\n\nنمادها و بهای تمام‌شده:");
+                "\n\nنمادها و بهای تمام‌شده:"
+        );
 
         header.setTextSize(18);
 
@@ -687,21 +756,23 @@ public class MainActivity extends Activity {
             Button symbolButton =
                     new Button(this);
 
-            String text =
+            symbolButton.setText(
                     position.symbol +
                     "     |     " +
                     money(position.cost) +
-                    " تومان";
-
-            symbolButton.setText(text);
+                    " تومان"
+            );
 
             String symbol =
                     position.symbol;
 
             symbolButton.setOnClickListener(
-                    v -> showSymbolTransactionsDialog(
-                            portfolioName,
-                            symbol));
+                    v ->
+                            showSymbolTransactionsDialog(
+                                    portfolioName,
+                                    symbol
+                            )
+            );
 
             box.addView(symbolButton);
         }
@@ -712,10 +783,12 @@ public class MainActivity extends Activity {
                     new TextView(this);
 
             empty.setText(
-                    "در این سبد سهم فعال وجود ندارد.");
+                    "در این سبد سهم فعال وجود ندارد."
+            );
 
             empty.setPadding(
-                    0, 20, 0, 20);
+                    0, 20, 0, 20
+            );
 
             box.addView(empty);
         }
@@ -728,11 +801,13 @@ public class MainActivity extends Activity {
         new AlertDialog.Builder(this)
                 .setTitle(
                         "نمادهای " +
-                        portfolioName)
+                        portfolioName
+                )
                 .setView(scroll)
                 .setPositiveButton(
                         "بستن",
-                        null)
+                        null
+                )
                 .show();
     }
 
@@ -756,7 +831,8 @@ public class MainActivity extends Activity {
                 calculatePositions().get(
                         portfolioName +
                         "|" +
-                        symbolName);
+                        symbolName
+                );
 
         if (position != null) {
 
@@ -768,18 +844,22 @@ public class MainActivity extends Activity {
                     symbolName +
                     "\nتعداد فعلی: " +
                     formatNumber(
-                            position.quantity) +
+                            position.quantity
+                    ) +
                     "\nبهای تمام‌شده فعلی: " +
                     money(position.cost) +
                     " تومان" +
                     "\nمیانگین خرید: " +
                     money(
-                            position.averagePrice()) +
+                            position.averagePrice()
+                    ) +
                     " تومان" +
                     "\nسود/زیان تحقق‌یافته: " +
                     money(
-                            position.realizedProfit) +
-                    " تومان\n");
+                            position.realizedProfit
+                    ) +
+                    " تومان\n"
+            );
 
             summary.setTextSize(17);
 
@@ -790,17 +870,19 @@ public class MainActivity extends Activity {
                 new TextView(this);
 
         transactionsTitle.setText(
-                "تمام خرید و فروش‌های این نماد:");
+                "تمام خرید و فروش‌های این نماد:"
+        );
 
         transactionsTitle.setTextSize(18);
+
         transactionsTitle.setPadding(
-                0, 10, 0, 10);
+                0, 10, 0, 10
+        );
 
         box.addView(transactionsTitle);
 
         double totalBuyAmount = 0;
         double totalBuyFee = 0;
-
         double totalSellAmount = 0;
         double totalSellFee = 0;
 
@@ -811,20 +893,27 @@ public class MainActivity extends Activity {
             String portfolio =
                     cursor.getString(
                             cursor.getColumnIndexOrThrow(
-                                    "portfolio"));
+                                    "portfolio"
+                            )
+                    );
 
             String symbol =
                     cursor.getString(
                             cursor.getColumnIndexOrThrow(
-                                    "symbol"));
+                                    "symbol"
+                            )
+                    );
 
             String type =
                     cursor.getString(
                             cursor.getColumnIndexOrThrow(
-                                    "type"));
+                                    "type"
+                            )
+                    );
 
             if (portfolio == null ||
-                    !portfolioName.equals(portfolio)) {
+                    !portfolioName.equals(
+                            portfolio)) {
 
                 continue;
             }
@@ -846,27 +935,37 @@ public class MainActivity extends Activity {
             double quantity =
                     cursor.getDouble(
                             cursor.getColumnIndexOrThrow(
-                                    "quantity"));
+                                    "quantity"
+                            )
+                    );
 
             double price =
                     cursor.getDouble(
                             cursor.getColumnIndexOrThrow(
-                                    "price"));
+                                    "price"
+                            )
+                    );
 
             double amount =
                     cursor.getDouble(
                             cursor.getColumnIndexOrThrow(
-                                    "amount"));
+                                    "amount"
+                            )
+                    );
 
             double fee =
                     cursor.getDouble(
                             cursor.getColumnIndexOrThrow(
-                                    "fee"));
+                                    "fee"
+                            )
+                    );
 
             String date =
                     cursor.getString(
                             cursor.getColumnIndexOrThrow(
-                                    "date_shamsi"));
+                                    "date_shamsi"
+                            )
+                    );
 
             TextView item =
                     new TextView(this);
@@ -916,11 +1015,14 @@ public class MainActivity extends Activity {
                     finalLabel +
                     ": " +
                     money(finalAmount) +
-                    "\n──────────────────");
+                    "\n──────────────────"
+            );
 
             item.setTextSize(15);
+
             item.setPadding(
-                    0, 12, 0, 12);
+                    0, 12, 0, 12
+            );
 
             box.addView(item);
         }
@@ -933,7 +1035,8 @@ public class MainActivity extends Activity {
                     new TextView(this);
 
             empty.setText(
-                    "برای این نماد معامله‌ای ثبت نشده است.");
+                    "برای این نماد معامله‌ای ثبت نشده است."
+            );
 
             box.addView(empty);
 
@@ -951,7 +1054,8 @@ public class MainActivity extends Activity {
                     "\nپرداخت نهایی خرید: " +
                     money(
                             totalBuyAmount +
-                            totalBuyFee) +
+                            totalBuyFee
+                    ) +
                     "\n\nجمع فروش:\n" +
                     "مبلغ معاملات: " +
                     money(totalSellAmount) +
@@ -960,11 +1064,15 @@ public class MainActivity extends Activity {
                     "\nدریافتی خالص فروش: " +
                     money(
                             totalSellAmount -
-                            totalSellFee));
+                            totalSellFee
+                    )
+            );
 
             totals.setTextSize(16);
+
             totals.setPadding(
-                    0, 15, 0, 15);
+                    0, 15, 0, 15
+            );
 
             box.addView(totals);
         }
@@ -977,23 +1085,26 @@ public class MainActivity extends Activity {
         new AlertDialog.Builder(this)
                 .setTitle(
                         symbolName +
-                        " | جزئیات معاملات")
+                        " | جزئیات معاملات"
+                )
                 .setView(scroll)
                 .setPositiveButton(
                         "بستن",
-                        null)
+                        null
+                )
                 .show();
     }
 
     private Map<String,
             PortfolioEngine.Position>
-    calculatePositions() {
+            calculatePositions() {
 
         Cursor cursor =
                 db.getAllTransactions();
 
         return PortfolioEngine.calculate(
-                cursor);
+                cursor
+        );
     }
 
     private void showHistoryDialog() {
@@ -1008,54 +1119,73 @@ public class MainActivity extends Activity {
                 LinearLayout.VERTICAL);
 
         box.setPadding(
-                20, 10, 20, 10);
+                20, 10, 20, 10
+        );
 
         while (cursor.moveToNext()) {
 
             String type =
                     cursor.getString(
                             cursor.getColumnIndexOrThrow(
-                                    "type"));
+                                    "type"
+                            )
+                    );
 
             String portfolio =
                     cursor.getString(
                             cursor.getColumnIndexOrThrow(
-                                    "portfolio"));
+                                    "portfolio"
+                            )
+                    );
 
             String symbol =
                     cursor.getString(
                             cursor.getColumnIndexOrThrow(
-                                    "symbol"));
+                                    "symbol"
+                            )
+                    );
 
             double quantity =
                     cursor.getDouble(
                             cursor.getColumnIndexOrThrow(
-                                    "quantity"));
+                                    "quantity"
+                            )
+                    );
 
             double price =
                     cursor.getDouble(
                             cursor.getColumnIndexOrThrow(
-                                    "price"));
+                                    "price"
+                            )
+                    );
 
             double amount =
                     cursor.getDouble(
                             cursor.getColumnIndexOrThrow(
-                                    "amount"));
+                                    "amount"
+                            )
+                    );
 
             double fee =
                     cursor.getDouble(
                             cursor.getColumnIndexOrThrow(
-                                    "fee"));
+                                    "fee"
+                            )
+                    );
 
             String date =
                     cursor.getString(
                             cursor.getColumnIndexOrThrow(
-                                    "date_shamsi"));
+                                    "date_shamsi"
+                            )
+                    );
 
             String description =
                     cursor.getString(
                             cursor.getColumnIndexOrThrow(
-                                    "description"));
+                                    "description"
+                            )
+                    );
 
             TextView item =
                     new TextView(this);
@@ -1090,7 +1220,8 @@ public class MainActivity extends Activity {
                         money(finalAmount) +
                         "\nتوضیحات: " +
                         safe(description) +
-                        "\n──────────────────");
+                        "\n──────────────────"
+                );
 
             } else {
 
@@ -1106,11 +1237,13 @@ public class MainActivity extends Activity {
                         safe(date) +
                         "\nتوضیحات: " +
                         safe(description) +
-                        "\n──────────────────");
+                        "\n──────────────────"
+                );
             }
 
             item.setPadding(
-                    0, 10, 0, 10);
+                    0, 10, 0, 10
+            );
 
             box.addView(item);
         }
@@ -1127,28 +1260,34 @@ public class MainActivity extends Activity {
                 .setView(scroll)
                 .setPositiveButton(
                         "بستن",
-                        null)
+                        null
+                )
                 .show();
     }
 
     private void showSearchDialog() {
 
         EditText search =
-                field("نماد، توضیحات، سبد یا کارگزاری");
+                field(
+                        "نماد، توضیحات، سبد یا کارگزاری"
+                );
 
         new AlertDialog.Builder(this)
                 .setTitle("جستجو")
                 .setView(search)
                 .setNegativeButton(
                         "انصراف",
-                        null)
+                        null
+                )
                 .setPositiveButton(
                         "جستجو",
                         (dialog, which) ->
                                 showSearchResults(
                                         search.getText()
                                                 .toString()
-                                                .trim()))
+                                                .trim()
+                                )
+                )
                 .show();
     }
 
@@ -1157,11 +1296,11 @@ public class MainActivity extends Activity {
 
         if (query.isEmpty()) {
 
-            Toast.makeText(
+            android.widget.Toast.makeText(
                     this,
                     "عبارت جستجو را وارد کنید",
-                    Toast.LENGTH_SHORT)
-                    .show();
+                    android.widget.Toast.LENGTH_SHORT
+            ).show();
 
             return;
         }
@@ -1176,7 +1315,8 @@ public class MainActivity extends Activity {
                 LinearLayout.VERTICAL);
 
         box.setPadding(
-                20, 10, 20, 10);
+                20, 10, 20, 10
+        );
 
         boolean found = false;
 
@@ -1187,27 +1327,37 @@ public class MainActivity extends Activity {
             String type =
                     cursor.getString(
                             cursor.getColumnIndexOrThrow(
-                                    "type"));
+                                    "type"
+                            )
+                    );
 
             String symbol =
                     cursor.getString(
                             cursor.getColumnIndexOrThrow(
-                                    "symbol"));
+                                    "symbol"
+                            )
+                    );
 
             double amount =
                     cursor.getDouble(
                             cursor.getColumnIndexOrThrow(
-                                    "amount"));
+                                    "amount"
+                            )
+                    );
 
             double fee =
                     cursor.getDouble(
                             cursor.getColumnIndexOrThrow(
-                                    "fee"));
+                                    "fee"
+                            )
+                    );
 
             String date =
                     cursor.getString(
                             cursor.getColumnIndexOrThrow(
-                                    "date_shamsi"));
+                                    "date_shamsi"
+                            )
+                    );
 
             TextView item =
                     new TextView(this);
@@ -1225,10 +1375,12 @@ public class MainActivity extends Activity {
                     money(amount) +
                     "\nکارمزد: " +
                     money(fee) +
-                    "\n──────────────────");
+                    "\n──────────────────"
+            );
 
             item.setPadding(
-                    0, 10, 0, 10);
+                    0, 10, 0, 10
+            );
 
             box.addView(item);
         }
@@ -1241,7 +1393,8 @@ public class MainActivity extends Activity {
                     new TextView(this);
 
             empty.setText(
-                    "نتیجه‌ای پیدا نشد.");
+                    "نتیجه‌ای پیدا نشد."
+            );
 
             box.addView(empty);
         }
@@ -1256,27 +1409,36 @@ public class MainActivity extends Activity {
                 .setView(scroll)
                 .setPositiveButton(
                         "بستن",
-                        null)
+                        null
+                )
                 .show();
     }
 
     private void showCashBalance() {
 
+        /*
+         * اصلاح اصلی خطای Build:
+         * DatabaseHelper.getCashBalance
+         * نیاز به نام سبد دارد.
+         */
         double balance =
-                db.getCashBalance();
+                db.getCashBalance("اصلی");
 
         new AlertDialog.Builder(this)
                 .setTitle("موجودی نقدی")
                 .setMessage(
                         money(balance) +
-                        " تومان")
+                        " تومان"
+                )
                 .setPositiveButton(
                         "باشه",
-                        null)
+                        null
+                )
                 .show();
     }
 
-    private double number(EditText field) {
+    private double number(
+            EditText field) {
 
         try {
 
@@ -1290,20 +1452,16 @@ public class MainActivity extends Activity {
             }
 
             value =
-                    value.replace(
-                            ",", "");
+                    value.replace(",", "");
 
             value =
-                    value.replace(
-                            "٬", "");
+                    value.replace("٬", "");
 
             value =
-                    value.replace(
-                            "٫", ".");
+                    value.replace("٫", ".");
 
             value =
-                    value.replace(
-                            "۰", "0")
+                    value.replace("۰", "0")
                             .replace("۱", "1")
                             .replace("۲", "2")
                             .replace("۳", "3")
@@ -1322,33 +1480,40 @@ public class MainActivity extends Activity {
         }
     }
 
-    private String money(double value) {
+    private String money(
+            double value) {
 
         return String.format(
                 Locale.US,
                 "%,.0f",
-                value);
+                value
+        );
     }
 
-    private String formatNumber(double value) {
+    private String formatNumber(
+            double value) {
 
         if (Math.abs(
                 value -
-                Math.round(value)) < 0.0000001) {
+                Math.round(value)
+        ) < 0.0000001) {
 
             return String.format(
                     Locale.US,
                     "%.0f",
-                    value);
+                    value
+            );
         }
 
         return String.format(
                 Locale.US,
                 "%.4f",
-                value);
+                value
+        );
     }
 
-    private String safe(String value) {
+    private String safe(
+            String value) {
 
         if (value == null) {
             return "";
