@@ -6,9 +6,10 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 
-import java.text.SimpleDateFormat;
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.util.Calendar;
-import java.util.Date;
 import java.util.Locale;
 
 public class DatabaseHelper extends SQLiteOpenHelper {
@@ -707,6 +708,392 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         } finally {
 
             cursor.close();
+        }
+    }
+
+    // =========================================================
+    //                    BACKUP / RESTORE
+    // =========================================================
+
+    /*
+     * ساخت بک‌آپ کامل دیتابیس به صورت JSON
+     */
+    public String exportBackupJson()
+            throws Exception {
+
+        JSONObject backup =
+                new JSONObject();
+
+        backup.put(
+                "app",
+                "حساب بورس"
+        );
+
+        backup.put(
+                "backup_version",
+                1
+        );
+
+        backup.put(
+                "created_at",
+                System.currentTimeMillis()
+        );
+
+        JSONArray transactions =
+                new JSONArray();
+
+        Cursor cursor =
+                getAllTransactions();
+
+        try {
+
+            while (cursor.moveToNext()) {
+
+                JSONObject item =
+                        new JSONObject();
+
+                item.put(
+                        "id",
+                        cursor.getLong(
+                                cursor.getColumnIndexOrThrow(
+                                        "id"
+                                )
+                        )
+                );
+
+                item.put(
+                        "type",
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow(
+                                        "type"
+                                )
+                        )
+                );
+
+                item.put(
+                        "portfolio",
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow(
+                                        "portfolio"
+                                )
+                        )
+                );
+
+                item.put(
+                        "broker",
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow(
+                                        "broker"
+                                )
+                        )
+                );
+
+                item.put(
+                        "symbol",
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow(
+                                        "symbol"
+                                )
+                        )
+                );
+
+                item.put(
+                        "quantity",
+                        cursor.getDouble(
+                                cursor.getColumnIndexOrThrow(
+                                        "quantity"
+                                )
+                        )
+                );
+
+                item.put(
+                        "price",
+                        cursor.getDouble(
+                                cursor.getColumnIndexOrThrow(
+                                        "price"
+                                )
+                        )
+                );
+
+                item.put(
+                        "fee",
+                        cursor.getDouble(
+                                cursor.getColumnIndexOrThrow(
+                                        "fee"
+                                )
+                        )
+                );
+
+                item.put(
+                        "amount",
+                        cursor.getDouble(
+                                cursor.getColumnIndexOrThrow(
+                                        "amount"
+                                )
+                        )
+                );
+
+                item.put(
+                        "description",
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow(
+                                        "description"
+                                )
+                        )
+                );
+
+                item.put(
+                        "date",
+                        cursor.getLong(
+                                cursor.getColumnIndexOrThrow(
+                                        "date"
+                                )
+                        )
+                );
+
+                item.put(
+                        "date_shamsi",
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow(
+                                        "date_shamsi"
+                                )
+                        )
+                );
+
+                transactions.put(item);
+            }
+
+        } finally {
+
+            cursor.close();
+        }
+
+        backup.put(
+                "transactions",
+                transactions
+        );
+
+        return backup.toString(2);
+    }
+
+    /*
+     * بازیابی بک‌آپ JSON
+     *
+     * اطلاعات فعلی تراکنش‌ها جایگزین
+     * اطلاعات موجود در فایل بک‌آپ می‌شوند.
+     *
+     * عملیات کاملاً داخل Transaction انجام می‌شود
+     * تا در صورت خطا اطلاعات قبلی حفظ شود.
+     */
+    public void importBackupJson(
+            String json) throws Exception {
+
+        if (json == null ||
+                json.trim().isEmpty()) {
+
+            throw new IllegalArgumentException(
+                    "فایل بک‌آپ خالی است."
+            );
+        }
+
+        JSONObject backup =
+                new JSONObject(json);
+
+        String app =
+                backup.optString(
+                        "app",
+                        ""
+                );
+
+        if (!"حساب بورس".equals(app)) {
+
+            throw new IllegalArgumentException(
+                    "این فایل، بک‌آپ برنامه حساب بورس نیست."
+            );
+        }
+
+        int backupVersion =
+                backup.optInt(
+                        "backup_version",
+                        0
+                );
+
+        if (backupVersion != 1) {
+
+            throw new IllegalArgumentException(
+                    "نسخه بک‌آپ پشتیبانی نمی‌شود."
+            );
+        }
+
+        JSONArray transactions =
+                backup.optJSONArray(
+                        "transactions"
+                );
+
+        if (transactions == null) {
+
+            throw new IllegalArgumentException(
+                    "اطلاعات تراکنش‌ها در بک‌آپ پیدا نشد."
+            );
+        }
+
+        SQLiteDatabase db =
+                getWritableDatabase();
+
+        db.beginTransaction();
+
+        try {
+
+            /*
+             * حذف تراکنش‌های فعلی
+             */
+            db.delete(
+                    TABLE,
+                    null,
+                    null
+            );
+
+            /*
+             * وارد کردن تراکنش‌های بک‌آپ
+             */
+            for (int i = 0;
+                    i < transactions.length();
+                    i++) {
+
+                JSONObject item =
+                        transactions.getJSONObject(i);
+
+                long id =
+                        item.optLong(
+                                "id",
+                                0
+                        );
+
+                String type =
+                        item.optString(
+                                "type",
+                                ""
+                        );
+
+                if (id <= 0) {
+
+                    throw new IllegalArgumentException(
+                            "شناسه تراکنش در بک‌آپ نامعتبر است."
+                    );
+                }
+
+                if (type.trim().isEmpty()) {
+
+                    throw new IllegalArgumentException(
+                            "نوع یکی از تراکنش‌های بک‌آپ نامعتبر است."
+                    );
+                }
+
+                ContentValues values =
+                        new ContentValues();
+
+                values.put(
+                        "id",
+                        id
+                );
+
+                values.put(
+                        "type",
+                        type
+                );
+
+                values.put(
+                        "portfolio",
+                        item.optString(
+                                "portfolio",
+                                "اصلی"
+                        )
+                );
+
+                values.put(
+                        "broker",
+                        item.optString(
+                                "broker",
+                                ""
+                        )
+                );
+
+                values.put(
+                        "symbol",
+                        item.optString(
+                                "symbol",
+                                ""
+                        )
+                );
+
+                values.put(
+                        "quantity",
+                        item.optDouble(
+                                "quantity",
+                                0
+                        )
+                );
+
+                values.put(
+                        "price",
+                        item.optDouble(
+                                "price",
+                                0
+                        )
+                );
+
+                values.put(
+                        "fee",
+                        item.optDouble(
+                                "fee",
+                                0
+                        )
+                );
+
+                values.put(
+                        "amount",
+                        item.optDouble(
+                                "amount",
+                                0
+                        )
+                );
+
+                values.put(
+                        "description",
+                        item.optString(
+                                "description",
+                                ""
+                        )
+                );
+
+                values.put(
+                        "date",
+                        item.optLong(
+                                "date",
+                                System.currentTimeMillis()
+                        )
+                );
+
+                values.put(
+                        "date_shamsi",
+                        item.optString(
+                                "date_shamsi",
+                                ""
+                        )
+                );
+
+                db.insertOrThrow(
+                        TABLE,
+                        null,
+                        values
+                );
+            }
+
+            db.setTransactionSuccessful();
+
+        } finally {
+
+            db.endTransaction();
         }
     }
 }
