@@ -1,73 +1,25 @@
-package ir.ansarweb.hesabbourse;
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-import android.content.ContentValues;
-import android.content.Context;
-import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
-import android.database.sqlite.SQLiteOpenHelper;
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
 
-public class DatabaseHelper extends SQLiteOpenHelper {
+    <application
+        android:allowBackup="true"
+        android:label="حساب بورس"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.HesabBourseMan">
 
-    private static final String DB_NAME = "hesab_bourse.db";
-    private static final int DB_VERSION = 1;
+        <activity
+            android:name=".MainActivity"
+            android:screenOrientation="portrait"
+            android:exported="true">
 
-    public DatabaseHelper(Context context) {
-        super(context, DB_NAME, null, DB_VERSION);
-    }
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
 
-    @Override
-    public void onCreate(SQLiteDatabase db) {
+        </activity>
 
-        db.execSQL(
-            "CREATE TABLE transactions (" +
-            "id INTEGER PRIMARY KEY AUTOINCREMENT," +
-            "type TEXT NOT NULL," +
-            "broker TEXT," +
-            "symbol TEXT," +
-            "quantity REAL DEFAULT 0," +
-            "price REAL DEFAULT 0," +
-            "fee REAL DEFAULT 0," +
-            "amount REAL DEFAULT 0," +
-            "date INTEGER NOT NULL)"
-        );
-    }
+    </application>
 
-    @Override
-    public void onUpgrade(
-            SQLiteDatabase db,
-            int oldVersion,
-            int newVersion) {
-    }
-
-    public long addTransaction(
-            String type,
-            String broker,
-            String symbol,
-            double quantity,
-            double price,
-            double fee,
-            double amount) {
-
-        ContentValues values = new ContentValues();
-
-        values.put("type", type);
-        values.put("broker", broker);
-        values.put("symbol", symbol);
-        values.put("quantity", quantity);
-        values.put("price", price);
-        values.put("fee", fee);
-        values.put("amount", amount);
-        values.put("date", System.currentTimeMillis());
-
-        return getWritableDatabase()
-                .insert("transactions", null, values);
-    }
-
-    public Cursor getAllTransactions() {
-
-        return getReadableDatabase().rawQuery(
-            "SELECT * FROM transactions ORDER BY date DESC",
-            null
-        );
-    }
-}
+</manifest>
