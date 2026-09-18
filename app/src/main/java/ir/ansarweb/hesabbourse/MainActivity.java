@@ -21,288 +21,245 @@ public class MainActivity extends Activity {
 
     private DatabaseHelper database;
     private TextView transactions;
+    private SpeechRecognizer speechRecognizer;
 
     private static final int AUDIO_PERMISSION = 9002;
-
-    private SpeechRecognizer speechRecognizer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        setContentView(R.layout.activity_main);
-
         database = new DatabaseHelper(this);
 
-        transactions = findViewById(R.id.transactions);
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(24, 24, 24, 24);
 
-        findViewById(R.id.addTrade)
-                .setOnClickListener(v -> showTradeDialog());
+        TextView title = new TextView(this);
+        title.setText("حساب بورس");
+        title.setTextSize(26);
+        title.setPadding(0, 0, 0, 24);
+        root.addView(title);
 
-        findViewById(R.id.addDeposit)
-                .setOnClickListener(v -> showCashDialog("DEPOSIT"));
+        TextView addTrade = new TextView(this);
+        addTrade.setText("➕ ثبت معامله");
+        addTrade.setTextSize(20);
+        addTrade.setPadding(0, 20, 0, 20);
+        root.addView(addTrade);
 
-        findViewById(R.id.addWithdraw)
-                .setOnClickListener(v -> showCashDialog("WITHDRAW"));
+        TextView addDeposit = new TextView(this);
+        addDeposit.setText("💰 ثبت واریز");
+        addDeposit.setTextSize(20);
+        addDeposit.setPadding(0, 20, 0, 20);
+        root.addView(addDeposit);
 
-        findViewById(R.id.voiceButton)
-                .setOnClickListener(v -> startVoiceInput());
+        TextView addWithdraw = new TextView(this);
+        addWithdraw.setText("💸 ثبت برداشت");
+        addWithdraw.setTextSize(20);
+        addWithdraw.setPadding(0, 20, 0, 20);
+        root.addView(addWithdraw);
+
+        TextView voiceButton = new TextView(this);
+        voiceButton.setText("🎤 ثبت معامله با صدا");
+        voiceButton.setTextSize(20);
+        voiceButton.setPadding(0, 20, 0, 20);
+        root.addView(voiceButton);
+
+        TextView listTitle = new TextView(this);
+        listTitle.setText("آخرین تراکنش‌ها");
+        listTitle.setTextSize(21);
+        listTitle.setPadding(0, 30, 0, 10);
+        root.addView(listTitle);
+
+        transactions = new TextView(this);
+        transactions.setTextSize(16);
+        root.addView(transactions);
+
+        setContentView(root);
+
+        addTrade.setOnClickListener(v -> showTradeDialog());
+        addDeposit.setOnClickListener(v -> showCashDialog("DEPOSIT"));
+        addWithdraw.setOnClickListener(v -> showCashDialog("WITHDRAW"));
+        voiceButton.setOnClickListener(v -> startVoiceInput());
 
         refreshTransactions();
     }
 
     private void showTradeDialog() {
 
-        LinearLayout layout = createForm();
+        LinearLayout form = createForm();
 
-        EditText portfolio =
-                field("نام سبد - مثلاً محمد");
+        EditText portfolio = field("سبد / پرتفوی", "اصلی");
+        EditText broker = field("کارگزاری", "");
+        EditText symbol = field("نماد", "");
+        EditText quantity = field("تعداد", "0");
+        EditText price = field("قیمت هر سهم", "0");
+        EditText fee = field("کارمزد", "0");
 
-        EditText broker =
-                field("کارگزاری");
-
-        EditText symbol =
-                field("نماد");
-
-        EditText quantity =
-                field("تعداد");
-
-        EditText price =
-                field("قیمت هر سهم");
-
-        EditText fee =
-                field("کارمزد");
-
-        layout.addView(portfolio);
-        layout.addView(broker);
-        layout.addView(symbol);
-        layout.addView(quantity);
-        layout.addView(price);
-        layout.addView(fee);
+        form.addView(portfolio);
+        form.addView(broker);
+        form.addView(symbol);
+        form.addView(quantity);
+        form.addView(price);
+        form.addView(fee);
 
         new AlertDialog.Builder(this)
-                .setTitle("ثبت معامله")
-                .setView(layout)
-                .setPositiveButton(
-                        "خرید",
-                        (dialog, which) ->
-                                saveTrade(
-                                        "BUY",
-                                        portfolio,
-                                        broker,
-                                        symbol,
-                                        quantity,
-                                        price,
-                                        fee
-                                )
-                )
-                .setNeutralButton(
-                        "فروش",
-                        (dialog, which) ->
-                                saveTrade(
-                                        "SELL",
-                                        portfolio,
-                                        broker,
-                                        symbol,
-                                        quantity,
-                                        price,
-                                        fee
-                                )
-                )
-                .setNegativeButton("لغو", null)
+                .setTitle("ثبت معامله خرید")
+                .setView(form)
+                .setPositiveButton("ثبت", (dialog, which) -> {
+
+                    saveTrade(
+                            "BUY",
+                            portfolio.getText().toString(),
+                            broker.getText().toString(),
+                            symbol.getText().toString(),
+                            quantity.getText().toString(),
+                            price.getText().toString(),
+                            fee.getText().toString()
+                    );
+                })
+                .setNegativeButton("انصراف", null)
                 .show();
     }
 
     private void saveTrade(
             String type,
-            EditText portfolio,
-            EditText broker,
-            EditText symbol,
-            EditText quantity,
-            EditText price,
-            EditText fee) {
+            String portfolio,
+            String broker,
+            String symbol,
+            String quantityText,
+            String priceText,
+            String feeText) {
 
         try {
 
-            double q =
-                    Double.parseDouble(
-                            normalizeNumber(
-                                    quantity
-                                            .getText()
-                                            .toString()
-                                            .trim()
-                            )
-                    );
+            double quantity = normalizeNumber(quantityText);
+            double price = normalizeNumber(priceText);
+            double fee = normalizeNumber(feeText);
 
-            double p =
-                    Double.parseDouble(
-                            normalizeNumber(
-                                    price
-                                            .getText()
-                                            .toString()
-                                            .trim()
-                            )
-                    );
+            double amount = quantity * price;
 
-            double f = 0;
-
-            String feeText =
-                    fee.getText()
-                            .toString()
-                            .trim();
-
-            if (!feeText.isEmpty()) {
-
-                f =
-                        Double.parseDouble(
-                                normalizeNumber(feeText)
-                        );
-            }
-
-            String portfolioText =
-                    portfolio.getText()
-                            .toString()
-                            .trim();
-
-            String brokerText =
-                    broker.getText()
-                            .toString()
-                            .trim();
-
-            String symbolText =
-                    symbol.getText()
-                            .toString()
-                            .trim();
-
-            if (q <= 0 ||
-                    p <= 0 ||
-                    symbolText.isEmpty()) {
-
-                throw new Exception();
-            }
-
-            database.addTransaction(
+            long result = database.addTransaction(
                     type,
-                    portfolioText,
-                    brokerText,
-                    symbolText,
-                    q,
-                    p,
-                    f,
-                    (q * p) + f
+                    portfolio,
+                    broker,
+                    symbol,
+                    quantity,
+                    price,
+                    fee,
+                    amount
             );
 
-            refreshTransactions();
+            if (result != -1) {
+                Toast.makeText(
+                        this,
+                        "معامله با موفقیت ثبت شد",
+                        Toast.LENGTH_SHORT
+                ).show();
 
-            Toast.makeText(
-                    this,
-                    "معامله با موفقیت ثبت شد",
-                    Toast.LENGTH_SHORT
-            ).show();
+                refreshTransactions();
+
+            } else {
+
+                Toast.makeText(
+                        this,
+                        "ثبت معامله ناموفق بود",
+                        Toast.LENGTH_SHORT
+                ).show();
+            }
 
         } catch (Exception e) {
 
             Toast.makeText(
                     this,
-                    "اطلاعات معامله صحیح نیست",
-                    Toast.LENGTH_SHORT
+                    "خطا در ثبت معامله: " + e.getMessage(),
+                    Toast.LENGTH_LONG
             ).show();
         }
     }
 
     private void showCashDialog(String type) {
 
-        EditText amount =
-                field("مبلغ تومان");
+        LinearLayout form = createForm();
+
+        EditText portfolio = field("سبد / پرتفوی", "اصلی");
+        EditText amount = field("مبلغ", "0");
+
+        form.addView(portfolio);
+        form.addView(amount);
+
+        String title = type.equals("DEPOSIT")
+                ? "ثبت واریز"
+                : "ثبت برداشت";
 
         new AlertDialog.Builder(this)
-                .setTitle(
-                        type.equals("DEPOSIT")
-                                ? "واریز به کارگزاری"
-                                : "برداشت"
-                )
-                .setView(amount)
-                .setPositiveButton(
-                        "ثبت",
-                        (dialog, which) -> {
+                .setTitle(title)
+                .setView(form)
+                .setPositiveButton("ثبت", (dialog, which) -> {
 
-                            try {
+                    try {
 
-                                double value =
-                                        Double.parseDouble(
-                                                normalizeNumber(
-                                                        amount
-                                                                .getText()
-                                                                .toString()
-                                                                .trim()
-                                                )
-                                        );
+                        double value =
+                                normalizeNumber(amount.getText().toString());
 
-                                if (value <= 0) {
-                                    throw new Exception();
-                                }
+                        long result = database.addTransaction(
+                                type,
+                                portfolio.getText().toString(),
+                                "",
+                                "",
+                                0,
+                                0,
+                                0,
+                                value
+                        );
 
-                                database.addTransaction(
-                                        type,
-                                        "اصلی",
-                                        "",
-                                        "",
-                                        0,
-                                        0,
-                                        0,
-                                        value
-                                );
+                        if (result != -1) {
 
-                                refreshTransactions();
+                            Toast.makeText(
+                                    this,
+                                    "با موفقیت ثبت شد",
+                                    Toast.LENGTH_SHORT
+                            ).show();
 
-                                Toast.makeText(
-                                        this,
-                                        "ثبت شد",
-                                        Toast.LENGTH_SHORT
-                                ).show();
-
-                            } catch (Exception e) {
-
-                                Toast.makeText(
-                                        this,
-                                        "مبلغ صحیح نیست",
-                                        Toast.LENGTH_SHORT
-                                ).show();
-                            }
+                            refreshTransactions();
                         }
-                )
-                .setNegativeButton(
-                        "لغو",
-                        null
-                )
+
+                    } catch (Exception e) {
+
+                        Toast.makeText(
+                                this,
+                                "خطا در ثبت اطلاعات",
+                                Toast.LENGTH_SHORT
+                        ).show();
+                    }
+                })
+                .setNegativeButton("انصراف", null)
                 .show();
     }
 
     private LinearLayout createForm() {
 
-        LinearLayout layout =
-                new LinearLayout(this);
+        LinearLayout form = new LinearLayout(this);
 
-        layout.setOrientation(
-                LinearLayout.VERTICAL
+        form.setOrientation(LinearLayout.VERTICAL);
+
+        form.setPadding(
+                40,
+                10,
+                40,
+                10
         );
 
-        layout.setPadding(
-                24,
-                8,
-                24,
-                8
-        );
-
-        return layout;
+        return form;
     }
 
-    private EditText field(String hint) {
+    private EditText field(String hint, String value) {
 
-        EditText editText =
-                new EditText(this);
+        EditText editText = new EditText(this);
 
         editText.setHint(hint);
+        editText.setText(value);
+
         editText.setSingleLine(true);
 
         return editText;
@@ -310,19 +267,20 @@ public class MainActivity extends Activity {
 
     private void startVoiceInput() {
 
-        if (Build.VERSION.SDK_INT >= 23 &&
-                checkSelfPermission(
-                        Manifest.permission.RECORD_AUDIO
-                ) != PackageManager.PERMISSION_GRANTED) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
 
-            requestPermissions(
-                    new String[]{
-                            Manifest.permission.RECORD_AUDIO
-                    },
-                    AUDIO_PERMISSION
-            );
+            if (checkSelfPermission(Manifest.permission.RECORD_AUDIO)
+                    != PackageManager.PERMISSION_GRANTED) {
 
-            return;
+                requestPermissions(
+                        new String[]{
+                                Manifest.permission.RECORD_AUDIO
+                        },
+                        AUDIO_PERMISSION
+                );
+
+                return;
+            }
         }
 
         startSpeechRecognizer();
@@ -342,36 +300,20 @@ public class MainActivity extends Activity {
         }
 
         if (speechRecognizer != null) {
-
             speechRecognizer.destroy();
-            speechRecognizer = null;
         }
 
-        if (Build.VERSION.SDK_INT >= 31 &&
-                SpeechRecognizer
-                        .isOnDeviceRecognitionAvailable(this)) {
-
-            speechRecognizer =
-                    SpeechRecognizer
-                            .createOnDeviceSpeechRecognizer(this);
-
-        } else {
-
-            speechRecognizer =
-                    SpeechRecognizer
-                            .createSpeechRecognizer(this);
-        }
+        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
 
         speechRecognizer.setRecognitionListener(
                 new RecognitionListener() {
 
                     @Override
-                    public void onReadyForSpeech(
-                            Bundle params) {
+                    public void onReadyForSpeech(Bundle params) {
 
                         Toast.makeText(
                                 MainActivity.this,
-                                "🎙 صحبت کنید...",
+                                "صحبت کنید...",
                                 Toast.LENGTH_SHORT
                         ).show();
                     }
@@ -381,13 +323,11 @@ public class MainActivity extends Activity {
                     }
 
                     @Override
-                    public void onRmsChanged(
-                            float rmsdB) {
+                    public void onRmsChanged(float rmsdB) {
                     }
 
                     @Override
-                    public void onBufferReceived(
-                            byte[] buffer) {
+                    public void onBufferReceived(byte[] buffer) {
                     }
 
                     @Override
@@ -395,70 +335,32 @@ public class MainActivity extends Activity {
                     }
 
                     @Override
-                    public void onError(
-                            int error) {
-
-                        String message;
-
-                        switch (error) {
-
-                            case SpeechRecognizer.ERROR_AUDIO:
-                                message = "خطا در میکروفون";
-                                break;
-
-                            case SpeechRecognizer.ERROR_NETWORK:
-                                message = "خطای شبکه";
-                                break;
-
-                            case SpeechRecognizer.ERROR_NETWORK_TIMEOUT:
-                                message = "پایان زمان انتظار شبکه";
-                                break;
-
-                            case SpeechRecognizer.ERROR_NO_MATCH:
-                                message =
-                                        "صدایی قابل تشخیص پیدا نشد";
-                                break;
-
-                            case SpeechRecognizer.ERROR_SPEECH_TIMEOUT:
-                                message =
-                                        "مدتی صحبت نشد";
-                                break;
-
-                            default:
-                                message =
-                                        "تشخیص صدا انجام نشد";
-                                break;
-                        }
+                    public void onError(int error) {
 
                         Toast.makeText(
                                 MainActivity.this,
-                                message,
-                                Toast.LENGTH_LONG
+                                "تشخیص صدا انجام نشد",
+                                Toast.LENGTH_SHORT
                         ).show();
                     }
 
                     @Override
-                    public void onResults(
-                            Bundle results) {
+                    public void onResults(Bundle results) {
 
                         ArrayList<String> matches =
                                 results.getStringArrayList(
-                                        SpeechRecognizer
-                                                .EXTRA_RESULTS
+                                        RecognizerIntent.EXTRA_RESULTS
                                 );
 
-                        if (matches != null &&
-                                !matches.isEmpty()) {
+                        if (matches != null
+                                && !matches.isEmpty()) {
 
-                            processVoiceTrade(
-                                    matches.get(0)
-                            );
+                            processVoiceTrade(matches.get(0));
                         }
                     }
 
                     @Override
-                    public void onPartialResults(
-                            Bundle partialResults) {
+                    public void onPartialResults(Bundle partialResults) {
                     }
 
                     @Override
@@ -470,10 +372,12 @@ public class MainActivity extends Activity {
         );
 
         Intent intent =
-                new Intent(
-                        RecognizerIntent
-                                .ACTION_RECOGNIZE_SPEECH
-                );
+                new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+
+        intent.putExtra(
+                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+        );
 
         intent.putExtra(
                 RecognizerIntent.EXTRA_LANGUAGE,
@@ -486,69 +390,50 @@ public class MainActivity extends Activity {
         );
 
         intent.putExtra(
-                RecognizerIntent.EXTRA_PROMPT,
-                "مثلاً: سبد محمد خرید ومعادن ۱۲ میلیون تومان ۳۵۰ تومان"
+                RecognizerIntent.EXTRA_MAX_RESULTS,
+                5
         );
 
         intent.putExtra(
                 RecognizerIntent.EXTRA_PARTIAL_RESULTS,
-                true
-        );
-
-        intent.putExtra(
-                RecognizerIntent.EXTRA_MAX_RESULTS,
-                5
+                false
         );
 
         speechRecognizer.startListening(intent);
     }
 
-    private void processVoiceTrade(
-            String spokenText) {
+    private void processVoiceTrade(String text) {
+
+        if (text == null || text.trim().isEmpty()) {
+            Toast.makeText(
+                    this,
+                    "صدایی تشخیص داده نشد",
+                    Toast.LENGTH_SHORT
+            ).show();
+
+            return;
+        }
 
         VoiceTradeParser.TradeData data =
-                VoiceTradeParser.parse(spokenText);
+                VoiceTradeParser.parse(text);
 
-        if (data.symbol.isEmpty()) {
+        if (data.symbol == null
+                || data.symbol.trim().isEmpty()) {
 
             Toast.makeText(
                     this,
-                    "نماد سهم تشخیص داده نشد\n" +
-                            spokenText,
+                    "نماد سهم تشخیص داده نشد",
                     Toast.LENGTH_LONG
             ).show();
 
             return;
         }
 
-        if (data.price <= 0) {
+        String type = data.isBuy
+                ? "BUY"
+                : "SELL";
 
-            Toast.makeText(
-                    this,
-                    "قیمت هر سهم تشخیص داده نشد",
-                    Toast.LENGTH_LONG
-            ).show();
-
-            return;
-        }
-
-        if (data.quantity <= 0) {
-
-            Toast.makeText(
-                    this,
-                    "تعداد سهم قابل محاسبه نیست",
-                    Toast.LENGTH_LONG
-            ).show();
-
-            return;
-        }
-
-        String type =
-                data.isBuy
-                        ? "BUY"
-                        : "SELL";
-
-        database.addTransaction(
+        long result = database.addTransaction(
                 type,
                 data.portfolio,
                 data.broker,
@@ -559,29 +444,29 @@ public class MainActivity extends Activity {
                 data.amount
         );
 
-        refreshTransactions();
+        if (result != -1) {
 
-        Toast.makeText(
-                this,
-                (data.isBuy
-                        ? "خرید "
-                        : "فروش ")
-                        + data.symbol
-                        + " ثبت شد\n"
-                        + "سبد: "
-                        + data.portfolio
-                        + "\n"
-                        + "تعداد: "
-                        + formatNumber(
-                                data.quantity
-                        )
-                        + "\n"
-                        + "قیمت: "
-                        + formatNumber(
-                                data.price
-                        ),
-                Toast.LENGTH_LONG
-        ).show();
+            Toast.makeText(
+                    this,
+                    "ثبت شد: "
+                            + data.portfolio
+                            + " / "
+                            + data.symbol
+                            + " / "
+                            + formatNumber(data.quantity),
+                    Toast.LENGTH_LONG
+            ).show();
+
+            refreshTransactions();
+
+        } else {
+
+            Toast.makeText(
+                    this,
+                    "ثبت معامله ناموفق بود",
+                    Toast.LENGTH_LONG
+            ).show();
+        }
     }
 
     @Override
@@ -598,10 +483,9 @@ public class MainActivity extends Activity {
 
         if (requestCode == AUDIO_PERMISSION) {
 
-            if (grantResults.length > 0 &&
-                    grantResults[0] ==
-                            PackageManager
-                                    .PERMISSION_GRANTED) {
+            if (grantResults.length > 0
+                    && grantResults[0]
+                    == PackageManager.PERMISSION_GRANTED) {
 
                 startSpeechRecognizer();
 
@@ -609,45 +493,42 @@ public class MainActivity extends Activity {
 
                 Toast.makeText(
                         this,
-                        "برای ورود صوتی باید اجازه میکروفون داده شود",
+                        "اجازه استفاده از میکروفون داده نشد",
                         Toast.LENGTH_LONG
                 ).show();
             }
         }
     }
 
-    private String normalizeNumber(
-            String value) {
+    private double normalizeNumber(String value) {
 
-        if (value == null) {
-            return "";
+        if (value == null || value.trim().isEmpty()) {
+            return 0;
         }
 
-        return value
-                .replace('۰', '0')
-                .replace('۱', '1')
-                .replace('۲', '2')
-                .replace('۳', '3')
-                .replace('۴', '4')
-                .replace('۵', '5')
-                .replace('۶', '6')
-                .replace('۷', '7')
-                .replace('۸', '8')
-                .replace('۹', '9')
+        String text = value
+                .replace("۰", "0")
+                .replace("۱", "1")
+                .replace("۲", "2")
+                .replace("۳", "3")
+                .replace("۴", "4")
+                .replace("۵", "5")
+                .replace("۶", "6")
+                .replace("۷", "7")
+                .replace("۸", "8")
+                .replace("۹", "9")
                 .replace("٬", "")
                 .replace(",", "")
                 .replace("،", "")
                 .trim();
+
+        return Double.parseDouble(text);
     }
 
-    private String formatNumber(
-            double value) {
+    private String formatNumber(double value) {
 
         if (value == (long) value) {
-
-            return String.valueOf(
-                    (long) value
-            );
+            return String.valueOf((long) value);
         }
 
         return String.valueOf(value);
@@ -655,138 +536,145 @@ public class MainActivity extends Activity {
 
     private void refreshTransactions() {
 
-        StringBuilder text =
-                new StringBuilder();
+        if (transactions == null) {
+            return;
+        }
+
+        StringBuilder text = new StringBuilder();
 
         android.database.Cursor cursor =
                 database.getAllTransactions();
 
-        int count = 0;
+        try {
 
-        while (cursor.moveToNext() &&
-                count < 15) {
+            int count = 0;
 
-            String type =
-                    cursor.getString(
-                            cursor.getColumnIndexOrThrow(
-                                    "type"
-                            )
-                    );
+            while (cursor.moveToNext()) {
 
-            String portfolio =
-                    cursor.getString(
-                            cursor.getColumnIndexOrThrow(
-                                    "portfolio"
-                            )
-                    );
+                count++;
 
-            String symbol =
-                    cursor.getString(
-                            cursor.getColumnIndexOrThrow(
-                                    "symbol"
-                            )
-                    );
-
-            double quantity =
-                    cursor.getDouble(
-                            cursor.getColumnIndexOrThrow(
-                                    "quantity"
-                            )
-                    );
-
-            double price =
-                    cursor.getDouble(
-                            cursor.getColumnIndexOrThrow(
-                                    "price"
-                            )
-                    );
-
-            double amount =
-                    cursor.getDouble(
-                            cursor.getColumnIndexOrThrow(
-                                    "amount"
-                            )
-                    );
-
-            String title;
-
-            if ("BUY".equals(type)) {
-
-                title = "خرید";
-
-            } else if ("SELL".equals(type)) {
-
-                title = "فروش";
-
-            } else if ("DEPOSIT".equals(type)) {
-
-                title = "واریز";
-
-            } else {
-
-                title = "برداشت";
-            }
-
-            text.append(title);
-
-            if (portfolio != null &&
-                    !portfolio.isEmpty()) {
-
-                text.append(" | سبد ")
-                        .append(portfolio);
-            }
-
-            if (symbol != null &&
-                    !symbol.isEmpty()) {
-
-                text.append(" | ")
-                        .append(symbol)
-                        .append(" | تعداد ")
-                        .append(
-                                formatNumber(quantity)
-                        )
-                        .append(" | قیمت ")
-                        .append(
-                                formatNumber(price)
+                String type =
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow("type")
                         );
 
-            } else {
+                String portfolio =
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow("portfolio")
+                        );
 
-                text.append(" | مبلغ ")
-                        .append(
-                                formatNumber(amount)
-                        )
-                        .append(" تومان");
+                String broker =
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow("broker")
+                        );
+
+                String symbol =
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow("symbol")
+                        );
+
+                double quantity =
+                        cursor.getDouble(
+                                cursor.getColumnIndexOrThrow("quantity")
+                        );
+
+                double price =
+                        cursor.getDouble(
+                                cursor.getColumnIndexOrThrow("price")
+                        );
+
+                double amount =
+                        cursor.getDouble(
+                                cursor.getColumnIndexOrThrow("amount")
+                        );
+
+                String action;
+
+                if ("BUY".equals(type)) {
+                    action = "خرید";
+                } else if ("SELL".equals(type)) {
+                    action = "فروش";
+                } else if ("DEPOSIT".equals(type)) {
+                    action = "واریز";
+                } else if ("WITHDRAW".equals(type)) {
+                    action = "برداشت";
+                } else {
+                    action = type;
+                }
+
+                text.append(count)
+                        .append(") ")
+                        .append(action)
+                        .append(" | ");
+
+                if (portfolio != null
+                        && !portfolio.trim().isEmpty()) {
+
+                    text.append("سبد: ")
+                            .append(portfolio)
+                            .append(" | ");
+                }
+
+                if (broker != null
+                        && !broker.trim().isEmpty()) {
+
+                    text.append("کارگزاری: ")
+                            .append(broker)
+                            .append(" | ");
+                }
+
+                if (symbol != null
+                        && !symbol.trim().isEmpty()) {
+
+                    text.append(symbol)
+                            .append(" | ");
+                }
+
+                if (quantity > 0) {
+
+                    text.append("تعداد: ")
+                            .append(formatNumber(quantity))
+                            .append(" | ");
+                }
+
+                if (price > 0) {
+
+                    text.append("قیمت: ")
+                            .append(formatNumber(price))
+                            .append(" | ");
+                }
+
+                if (amount > 0) {
+
+                    text.append("مبلغ: ")
+                            .append(formatNumber(amount));
+                }
+
+                text.append("\n\n");
             }
 
-            text.append("\n");
+            if (count == 0) {
+                text.append("هنوز تراکنشی ثبت نشده است.");
+            }
 
-            count++;
+        } finally {
+
+            cursor.close();
         }
 
-        cursor.close();
-
-        if (count == 0) {
-
-            transactions.setText(
-                    "هنوز معامله‌ای ثبت نشده است."
-            );
-
-        } else {
-
-            transactions.setText(
-                    text.toString()
-            );
-        }
+        transactions.setText(text.toString());
     }
 
     @Override
     protected void onDestroy() {
 
         if (speechRecognizer != null) {
-
             speechRecognizer.destroy();
             speechRecognizer = null;
+        }
+
+        if (database != null) {
+            database.close();
         }
 
         super.onDestroy();
