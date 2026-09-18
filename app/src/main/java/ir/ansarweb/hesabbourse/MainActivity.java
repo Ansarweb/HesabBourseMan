@@ -407,4 +407,388 @@ public class MainActivity extends Activity {
                                 break;
 
                             case SpeechRecognizer.ERROR_NETWORK:
-                                message = "
+                                message = "خطای شبکه";
+                                break;
+
+                            case SpeechRecognizer.ERROR_NETWORK_TIMEOUT:
+                                message = "پایان زمان انتظار شبکه";
+                                break;
+
+                            case SpeechRecognizer.ERROR_NO_MATCH:
+                                message =
+                                        "صدایی قابل تشخیص پیدا نشد";
+                                break;
+
+                            case SpeechRecognizer.ERROR_SPEECH_TIMEOUT:
+                                message =
+                                        "مدتی صحبت نشد";
+                                break;
+
+                            default:
+                                message =
+                                        "تشخیص صدا انجام نشد";
+                                break;
+                        }
+
+                        Toast.makeText(
+                                MainActivity.this,
+                                message,
+                                Toast.LENGTH_LONG
+                        ).show();
+                    }
+
+                    @Override
+                    public void onResults(
+                            Bundle results) {
+
+                        ArrayList<String> matches =
+                                results.getStringArrayList(
+                                        SpeechRecognizer
+                                                .EXTRA_RESULTS
+                                );
+
+                        if (matches != null &&
+                                !matches.isEmpty()) {
+
+                            processVoiceTrade(
+                                    matches.get(0)
+                            );
+                        }
+                    }
+
+                    @Override
+                    public void onPartialResults(
+                            Bundle partialResults) {
+                    }
+
+                    @Override
+                    public void onEvent(
+                            int eventType,
+                            Bundle params) {
+                    }
+                }
+        );
+
+        Intent intent =
+                new Intent(
+                        RecognizerIntent
+                                .ACTION_RECOGNIZE_SPEECH
+                );
+
+        intent.putExtra(
+                RecognizerIntent.EXTRA_LANGUAGE,
+                "fa-IR"
+        );
+
+        intent.putExtra(
+                RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE,
+                "fa-IR"
+        );
+
+        intent.putExtra(
+                RecognizerIntent.EXTRA_PROMPT,
+                "مثلاً: سبد محمد خرید ومعادن ۱۲ میلیون تومان ۳۵۰ تومان"
+        );
+
+        intent.putExtra(
+                RecognizerIntent.EXTRA_PARTIAL_RESULTS,
+                true
+        );
+
+        intent.putExtra(
+                RecognizerIntent.EXTRA_MAX_RESULTS,
+                5
+        );
+
+        speechRecognizer.startListening(intent);
+    }
+
+    private void processVoiceTrade(
+            String spokenText) {
+
+        VoiceTradeParser.TradeData data =
+                VoiceTradeParser.parse(spokenText);
+
+        if (data.symbol.isEmpty()) {
+
+            Toast.makeText(
+                    this,
+                    "نماد سهم تشخیص داده نشد\n" +
+                            spokenText,
+                    Toast.LENGTH_LONG
+            ).show();
+
+            return;
+        }
+
+        if (data.price <= 0) {
+
+            Toast.makeText(
+                    this,
+                    "قیمت هر سهم تشخیص داده نشد",
+                    Toast.LENGTH_LONG
+            ).show();
+
+            return;
+        }
+
+        if (data.quantity <= 0) {
+
+            Toast.makeText(
+                    this,
+                    "تعداد سهم قابل محاسبه نیست",
+                    Toast.LENGTH_LONG
+            ).show();
+
+            return;
+        }
+
+        String type =
+                data.isBuy
+                        ? "BUY"
+                        : "SELL";
+
+        database.addTransaction(
+                type,
+                data.portfolio,
+                data.broker,
+                data.symbol,
+                data.quantity,
+                data.price,
+                0,
+                data.amount
+        );
+
+        refreshTransactions();
+
+        Toast.makeText(
+                this,
+                (data.isBuy
+                        ? "خرید "
+                        : "فروش ")
+                        + data.symbol
+                        + " ثبت شد\n"
+                        + "سبد: "
+                        + data.portfolio
+                        + "\n"
+                        + "تعداد: "
+                        + formatNumber(
+                                data.quantity
+                        )
+                        + "\n"
+                        + "قیمت: "
+                        + formatNumber(
+                                data.price
+                        ),
+                Toast.LENGTH_LONG
+        ).show();
+    }
+
+    @Override
+    public void onRequestPermissionsResult(
+            int requestCode,
+            String[] permissions,
+            int[] grantResults) {
+
+        super.onRequestPermissionsResult(
+                requestCode,
+                permissions,
+                grantResults
+        );
+
+        if (requestCode == AUDIO_PERMISSION) {
+
+            if (grantResults.length > 0 &&
+                    grantResults[0] ==
+                            PackageManager
+                                    .PERMISSION_GRANTED) {
+
+                startSpeechRecognizer();
+
+            } else {
+
+                Toast.makeText(
+                        this,
+                        "برای ورود صوتی باید اجازه میکروفون داده شود",
+                        Toast.LENGTH_LONG
+                ).show();
+            }
+        }
+    }
+
+    private String normalizeNumber(
+            String value) {
+
+        if (value == null) {
+            return "";
+        }
+
+        return value
+                .replace('۰', '0')
+                .replace('۱', '1')
+                .replace('۲', '2')
+                .replace('۳', '3')
+                .replace('۴', '4')
+                .replace('۵', '5')
+                .replace('۶', '6')
+                .replace('۷', '7')
+                .replace('۸', '8')
+                .replace('۹', '9')
+                .replace("٬", "")
+                .replace(",", "")
+                .replace("،", "")
+                .trim();
+    }
+
+    private String formatNumber(
+            double value) {
+
+        if (value == (long) value) {
+
+            return String.valueOf(
+                    (long) value
+            );
+        }
+
+        return String.valueOf(value);
+    }
+
+    private void refreshTransactions() {
+
+        StringBuilder text =
+                new StringBuilder();
+
+        android.database.Cursor cursor =
+                database.getAllTransactions();
+
+        int count = 0;
+
+        while (cursor.moveToNext() &&
+                count < 15) {
+
+            String type =
+                    cursor.getString(
+                            cursor.getColumnIndexOrThrow(
+                                    "type"
+                            )
+                    );
+
+            String portfolio =
+                    cursor.getString(
+                            cursor.getColumnIndexOrThrow(
+                                    "portfolio"
+                            )
+                    );
+
+            String symbol =
+                    cursor.getString(
+                            cursor.getColumnIndexOrThrow(
+                                    "symbol"
+                            )
+                    );
+
+            double quantity =
+                    cursor.getDouble(
+                            cursor.getColumnIndexOrThrow(
+                                    "quantity"
+                            )
+                    );
+
+            double price =
+                    cursor.getDouble(
+                            cursor.getColumnIndexOrThrow(
+                                    "price"
+                            )
+                    );
+
+            double amount =
+                    cursor.getDouble(
+                            cursor.getColumnIndexOrThrow(
+                                    "amount"
+                            )
+                    );
+
+            String title;
+
+            if ("BUY".equals(type)) {
+
+                title = "خرید";
+
+            } else if ("SELL".equals(type)) {
+
+                title = "فروش";
+
+            } else if ("DEPOSIT".equals(type)) {
+
+                title = "واریز";
+
+            } else {
+
+                title = "برداشت";
+            }
+
+            text.append(title);
+
+            if (portfolio != null &&
+                    !portfolio.isEmpty()) {
+
+                text.append(" | سبد ")
+                        .append(portfolio);
+            }
+
+            if (symbol != null &&
+                    !symbol.isEmpty()) {
+
+                text.append(" | ")
+                        .append(symbol)
+                        .append(" | تعداد ")
+                        .append(
+                                formatNumber(quantity)
+                        )
+                        .append(" | قیمت ")
+                        .append(
+                                formatNumber(price)
+                        );
+
+            } else {
+
+                text.append(" | مبلغ ")
+                        .append(
+                                formatNumber(amount)
+                        )
+                        .append(" تومان");
+            }
+
+            text.append("\n");
+
+            count++;
+        }
+
+        cursor.close();
+
+        if (count == 0) {
+
+            transactions.setText(
+                    "هنوز معامله‌ای ثبت نشده است."
+            );
+
+        } else {
+
+            transactions.setText(
+                    text.toString()
+            );
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+
+        if (speechRecognizer != null) {
+
+            speechRecognizer.destroy();
+            speechRecognizer = null;
+        }
+
+        super.onDestroy();
+    }
+}
