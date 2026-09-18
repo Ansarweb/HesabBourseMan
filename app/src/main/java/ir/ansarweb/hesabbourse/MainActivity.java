@@ -11,1229 +11,1318 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.LinkedHashMap;
-import java.util.Locale;
 import java.util.Map;
 
 public class MainActivity extends Activity {
 
-private DatabaseHelper database;
-private TextView dashboard;
+    private DatabaseHelper database;
+    private TextView dashboard;
 
-private static final double BUY_FEE_RATE = 0.0037;
-private static final double SELL_FEE_RATE = 0.0088;
+    private static final double BUY_FEE_RATE = 0.0037;
+    private static final double SELL_FEE_RATE = 0.0088;
 
-@Override
-protected void onCreate(Bundle savedInstanceState) {
-    super.onCreate(savedInstanceState);
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
 
-    database = new DatabaseHelper(this);
+        database =
+                new DatabaseHelper(this);
 
-    buildInterface();
-    refreshDashboard();
-}
+        buildInterface();
+        refreshDashboard();
+    }
 
-private void buildInterface() {
+    private void buildInterface() {
 
-    LinearLayout root = new LinearLayout(this);
-    root.setOrientation(LinearLayout.VERTICAL);
-    root.setPadding(24, 24, 24, 24);
+        LinearLayout root =
+                new LinearLayout(this);
 
-    root.addView(createText("حساب بورس", 28, true));
-    root.addView(createText(
-            "حسابداری معاملات و سبد سرمایه‌گذاری",
-            16,
-            false
-    ));
-
-    addButton(root, "➕ ثبت خرید", () -> showTradeDialog("BUY"));
-    addButton(root, "➖ ثبت فروش", () -> showTradeDialog("SELL"));
-    addButton(root, "💰 ثبت واریز", () -> showCashDialog("DEPOSIT"));
-    addButton(root, "💸 ثبت برداشت", () -> showCashDialog("WITHDRAW"));
-    addButton(root, "📊 داشبورد سبدها", this::showPortfolioDialog);
-    addButton(root, "🧾 تاریخچه معاملات", this::showHistoryDialog);
-
-    root.addView(createText("وضعیت فعلی", 21, true));
-
-    dashboard = createText("", 16, false);
-
-    ScrollView scrollView = new ScrollView(this);
-    scrollView.addView(dashboard);
-
-    root.addView(
-            scrollView,
-            new LinearLayout.LayoutParams(
-                    -1,
-                    0,
-                    1
-            )
-    );
-
-    setContentView(root);
-}
-
-private TextView createText(
-        String text,
-        float size,
-        boolean bold) {
-
-    TextView view = new TextView(this);
-
-    view.setText(text);
-    view.setTextSize(size);
-
-    view.setPadding(0, 10, 0, 10);
-
-    if (bold) {
-        view.setTypeface(
-                null,
-                android.graphics.Typeface.BOLD
+        root.setOrientation(
+                LinearLayout.VERTICAL
         );
-    }
 
-    return view;
-}
-
-private void addButton(
-        LinearLayout parent,
-        String text,
-        Runnable action) {
-
-    Button button = new Button(this);
-
-    button.setText(text);
-    button.setTextSize(17);
-
-    button.setOnClickListener(
-            v -> action.run()
-    );
-
-    parent.addView(button);
-}
-
-private LinearLayout createForm() {
-
-    LinearLayout form = new LinearLayout(this);
-
-    form.setOrientation(
-            LinearLayout.VERTICAL
-    );
-
-    form.setPadding(
-            35,
-            5,
-            35,
-            5
-    );
-
-    return form;
-}
-
-private EditText createField(
-        String hint,
-        String value) {
-
-    EditText field = new EditText(this);
-
-    field.setHint(hint);
-    field.setText(value);
-    field.setSingleLine(true);
-
-    return field;
-}
-
-private double number(String value) {
-
-    if (value == null ||
-            value.trim().isEmpty()) {
-        return 0;
-    }
-
-    String normalized =
-            value
-                    .replace("۰", "0")
-                    .replace("۱", "1")
-                    .replace("۲", "2")
-                    .replace("۳", "3")
-                    .replace("۴", "4")
-                    .replace("۵", "5")
-                    .replace("۶", "6")
-                    .replace("۷", "7")
-                    .replace("۸", "8")
-                    .replace("۹", "9")
-                    .replace("٬", "")
-                    .replace(",", "")
-                    .replace("،", "")
-                    .trim();
-
-    return Double.parseDouble(normalized);
-}
-
-private String formatNumber(double value) {
-
-    if (Math.abs(value - Math.round(value)) < 0.000001) {
-        return String.format(
-                Locale.US,
-                "%,d",
-                Math.round(value)
+        root.setPadding(
+                24, 24, 24, 24
         );
+
+        root.addView(
+                createText(
+                        "حساب بورس",
+                        28,
+                        true
+                )
+        );
+
+        root.addView(
+                createText(
+                        "حسابداری معاملات و سبد سرمایه‌گذاری",
+                        16,
+                        false
+                )
+        );
+
+        addButton(
+                root,
+                "➕ ثبت خرید",
+                () -> showTradeDialog("BUY")
+        );
+
+        addButton(
+                root,
+                "➖ ثبت فروش",
+                () -> showTradeDialog("SELL")
+        );
+
+        addButton(
+                root,
+                "💰 ثبت واریز",
+                () -> showCashDialog("DEPOSIT")
+        );
+
+        addButton(
+                root,
+                "💸 ثبت برداشت",
+                () -> showCashDialog("WITHDRAW")
+        );
+
+        addButton(
+                root,
+                "📊 داشبورد سبدها",
+                this::showPortfolioDialog
+        );
+
+        addButton(
+                root,
+                "🧾 تاریخچه معاملات",
+                this::showHistoryDialog
+        );
+
+        root.addView(
+                createText(
+                        "وضعیت فعلی",
+                        21,
+                        true
+                )
+        );
+
+        dashboard =
+                createText(
+                        "",
+                        16,
+                        false
+                );
+
+        ScrollView scroll =
+                new ScrollView(this);
+
+        scroll.addView(dashboard);
+
+        root.addView(
+                scroll,
+                new LinearLayout.LayoutParams(
+                        -1,
+                        0,
+                        1
+                )
+        );
+
+        setContentView(root);
     }
 
-    return String.format(
-            Locale.US,
-            "%,.2f",
-            value
-    );
-}
+    private TextView createText(
+            String text,
+            float size,
+            boolean bold) {
 
-private String formatDate(long timestamp) {
+        TextView view =
+                new TextView(this);
 
-    SimpleDateFormat format =
-            new SimpleDateFormat(
-                    "yyyy/MM/dd HH:mm",
-                    Locale.US
+        view.setText(text);
+        view.setTextSize(size);
+        view.setPadding(
+                0, 10, 0, 10
+        );
+
+        if (bold) {
+            view.setTypeface(
+                    null,
+                    android.graphics.Typeface.BOLD
             );
-
-    return format.format(
-            new Date(timestamp)
-    );
-}
-
-private double getCurrentQuantity(
-        String portfolio,
-        String symbol) {
-
-    Cursor cursor =
-            database.getAllTransactions();
-
-    double quantity = 0;
-
-    try {
-
-        while (cursor.moveToNext()) {
-
-            String rowPortfolio =
-                    cursor.getString(
-                            cursor.getColumnIndexOrThrow(
-                                    "portfolio"
-                            )
-                    );
-
-            String rowSymbol =
-                    cursor.getString(
-                            cursor.getColumnIndexOrThrow(
-                                    "symbol"
-                            )
-                    );
-
-            String type =
-                    cursor.getString(
-                            cursor.getColumnIndexOrThrow(
-                                    "type"
-                            )
-                    );
-
-            if (rowPortfolio == null ||
-                    rowPortfolio.trim().isEmpty()) {
-                rowPortfolio = "اصلی";
-            }
-
-            if (rowSymbol == null) {
-                continue;
-            }
-
-            if (!rowPortfolio.equals(
-                    normalizePortfolio(portfolio))) {
-                continue;
-            }
-
-            if (!rowSymbol.equalsIgnoreCase(
-                    symbol.trim())) {
-                continue;
-            }
-
-            double q =
-                    cursor.getDouble(
-                            cursor.getColumnIndexOrThrow(
-                                    "quantity"
-                            )
-                    );
-
-            if ("BUY".equals(type)) {
-                quantity += q;
-            } else if ("SELL".equals(type)) {
-                quantity -= q;
-            }
         }
 
-    } finally {
-        cursor.close();
+        return view;
     }
 
-    return Math.max(quantity, 0);
-}
+    private void addButton(
+            LinearLayout parent,
+            String text,
+            Runnable action) {
 
-private String normalizePortfolio(
-        String portfolio) {
+        Button button =
+                new Button(this);
 
-    if (portfolio == null ||
-            portfolio.trim().isEmpty()) {
-        return "اصلی";
+        button.setText(text);
+        button.setTextSize(17);
+
+        button.setOnClickListener(
+                v -> action.run()
+        );
+
+        parent.addView(button);
     }
 
-    return portfolio.trim();
-}
+    private LinearLayout createForm() {
 
-private void showTradeDialog(String type) {
+        LinearLayout form =
+                new LinearLayout(this);
 
-    LinearLayout form = createForm();
+        form.setOrientation(
+                LinearLayout.VERTICAL
+        );
 
-    EditText portfolio =
-            createField(
-                    "نام سبد",
-                    "اصلی"
+        form.setPadding(
+                35, 5, 35, 5
+        );
+
+        return form;
+    }
+
+    private EditText createField(
+            String hint,
+            String value) {
+
+        EditText field =
+                new EditText(this);
+
+        field.setHint(hint);
+        field.setText(value);
+        field.setSingleLine(true);
+
+        return field;
+    }
+
+    private double number(String value) {
+
+        if (value == null ||
+                value.trim().isEmpty()) {
+
+            return 0;
+        }
+
+        String normalized =
+                value
+                        .replace("۰", "0")
+                        .replace("۱", "1")
+                        .replace("۲", "2")
+                        .replace("۳", "3")
+                        .replace("۴", "4")
+                        .replace("۵", "5")
+                        .replace("۶", "6")
+                        .replace("۷", "7")
+                        .replace("۸", "8")
+                        .replace("۹", "9")
+                        .replace("٬", "")
+                        .replace(",", "")
+                        .replace("،", "")
+                        .trim();
+
+        return Double.parseDouble(
+                normalized
+        );
+    }
+
+    private String formatNumber(
+            double value) {
+
+        if (Math.abs(
+                value - Math.round(value)
+        ) < 0.000001) {
+
+            return String.format(
+                    java.util.Locale.US,
+                    "%,d",
+                    Math.round(value)
+            );
+        }
+
+        return String.format(
+                java.util.Locale.US,
+                "%,.2f",
+                value
+        );
+    }
+
+    private String normalizePortfolio(
+            String portfolio) {
+
+        if (portfolio == null ||
+                portfolio.trim().isEmpty()) {
+
+            return "اصلی";
+        }
+
+        return portfolio.trim();
+    }
+
+    /*
+     * مهم:
+     * تراکنش‌ها باید از قدیمی به جدید
+     * محاسبه شوند.
+     *
+     * مشکل اصلی فروش قبلی همین بود.
+     */
+    private Map<String, PortfolioEngine.Position>
+    calculatePositions() {
+
+        Cursor cursor =
+                database.getReadableDatabase()
+                        .rawQuery(
+                                "SELECT * FROM transactions " +
+                                        "ORDER BY date ASC, id ASC",
+                                null
+                        );
+
+        try {
+
+            return PortfolioEngine.calculate(
+                    cursor
             );
 
-    EditText broker =
-            createField(
-                    "کارگزاری",
-                    ""
-            );
+        } finally {
 
-    EditText symbol =
-            createField(
-                    "نماد",
-                    ""
-            );
+            cursor.close();
+        }
+    }
 
-    EditText quantity =
-            createField(
-                    "تعداد سهم",
-                    ""
-            );
+    private double getCurrentQuantity(
+            String portfolio,
+            String symbol) {
 
-    EditText price =
-            createField(
-                    "قیمت هر سهم",
-                    ""
-            );
+        Map<String, PortfolioEngine.Position>
+                positions =
+                calculatePositions();
 
-    EditText totalAmount =
-            createField(
-                    "مبلغ کل — در حالت مبلغ",
-                    ""
-            );
+        String key =
+                normalizePortfolio(portfolio)
+                        + "|"
+                        + symbol.trim();
 
-    EditText description =
-            createField(
-                    "توضیحات (اختیاری)",
-                    ""
-            );
+        PortfolioEngine.Position position =
+                positions.get(key);
 
-    form.addView(portfolio);
-    form.addView(broker);
-    form.addView(symbol);
-    form.addView(quantity);
-    form.addView(price);
-    form.addView(totalAmount);
-    form.addView(description);
+        if (position == null) {
+            return 0;
+        }
 
-    String title =
-            type.equals("BUY")
-                    ? "ثبت خرید"
-                    : "ثبت فروش";
+        return position.quantity;
+    }
 
-    new AlertDialog.Builder(this)
-            .setTitle(title)
-            .setView(form)
-            .setPositiveButton(
-                    "ثبت",
-                    (dialog, which) -> {
+    private void showTradeDialog(
+            String type) {
 
-                        try {
+        LinearLayout form =
+                createForm();
 
-                            String portfolioText =
-                                    normalizePortfolio(
-                                            portfolio.getText()
-                                                    .toString()
-                                    );
+        EditText portfolio =
+                createField(
+                        "نام سبد",
+                        "اصلی"
+                );
 
-                            String symbolText =
-                                    symbol.getText()
-                                            .toString()
-                                            .trim();
+        EditText broker =
+                createField(
+                        "کارگزاری",
+                        ""
+                );
 
-                            double q =
-                                    number(
-                                            quantity.getText()
-                                                    .toString()
-                                    );
+        EditText symbol =
+                createField(
+                        "نماد",
+                        ""
+                );
 
-                            double p =
-                                    number(
-                                            price.getText()
-                                                    .toString()
-                                    );
+        EditText quantity =
+                createField(
+                        "تعداد سهم",
+                        ""
+                );
 
-                            double total =
-                                    number(
-                                            totalAmount.getText()
-                                                    .toString()
-                                    );
+        EditText price =
+                createField(
+                        "قیمت هر سهم",
+                        ""
+                );
 
-                            if (symbolText.isEmpty()) {
+        EditText totalAmount =
+                createField(
+                        "مبلغ کل",
+                        ""
+                );
 
-                                Toast.makeText(
-                                        this,
-                                        "نماد را وارد کنید",
-                                        Toast.LENGTH_SHORT
-                                ).show();
+        EditText description =
+                createField(
+                        "توضیحات",
+                        ""
+                );
 
-                                return;
-                            }
+        form.addView(portfolio);
+        form.addView(broker);
+        form.addView(symbol);
+        form.addView(quantity);
+        form.addView(price);
+        form.addView(totalAmount);
+        form.addView(description);
 
-                            if (p <= 0) {
+        String title =
+                type.equals("BUY")
+                        ? "ثبت خرید"
+                        : "ثبت فروش";
 
-                                Toast.makeText(
-                                        this,
-                                        "قیمت سهم باید بیشتر از صفر باشد",
-                                        Toast.LENGTH_SHORT
-                                ).show();
+        new AlertDialog.Builder(this)
+                .setTitle(title)
+                .setView(form)
+                .setPositiveButton(
+                        "ثبت",
+                        (dialog, which) -> {
 
-                                return;
-                            }
+                            try {
 
-                            /*
-                             * اگر تعداد وارد نشده باشد،
-                             * تعداد از مبلغ کل محاسبه می‌شود.
-                             */
-                            if (q <= 0 && total > 0) {
+                                String portfolioText =
+                                        normalizePortfolio(
+                                                portfolio
+                                                        .getText()
+                                                        .toString()
+                                        );
 
-                                q = Math.floor(
-                                        total / p
-                                );
+                                String symbolText =
+                                        symbol.getText()
+                                                .toString()
+                                                .trim()
+                                                .toUpperCase();
 
-                                if (q <= 0) {
+                                double q =
+                                        number(
+                                                quantity
+                                                        .getText()
+                                                        .toString()
+                                        );
+
+                                double p =
+                                        number(
+                                                price
+                                                        .getText()
+                                                        .toString()
+                                        );
+
+                                double total =
+                                        number(
+                                                totalAmount
+                                                        .getText()
+                                                        .toString()
+                                        );
+
+                                if (symbolText.isEmpty()) {
 
                                     Toast.makeText(
                                             this,
-                                            "مبلغ برای خرید یا فروش یک سهم کافی نیست",
+                                            "نماد را وارد کنید",
                                             Toast.LENGTH_SHORT
                                     ).show();
 
                                     return;
                                 }
 
-                                total = q * p;
-
-                            } else if (q > 0) {
-
-                                total = q * p;
-
-                            } else {
-
-                                Toast.makeText(
-                                        this,
-                                        "تعداد یا مبلغ کل را وارد کنید",
-                                        Toast.LENGTH_SHORT
-                                ).show();
-
-                                return;
-                            }
-
-                            /*
-                             * کنترل موجودی فروش
-                             */
-                            if ("SELL".equals(type)) {
-
-                                double available =
-                                        getCurrentQuantity(
-                                                portfolioText,
-                                                symbolText
-                                        );
-
-                                if (q > available + 0.000001) {
+                                if (p <= 0) {
 
                                     Toast.makeText(
                                             this,
-                                            "فروش ثبت نشد.\n"
-                                                    + "موجودی فعلی: "
-                                                    + formatNumber(available)
-                                                    + "\n"
-                                                    + "مقدار فروش: "
-                                                    + formatNumber(q),
-                                            Toast.LENGTH_LONG
+                                            "قیمت باید بیشتر از صفر باشد",
+                                            Toast.LENGTH_SHORT
                                     ).show();
 
                                     return;
                                 }
-                            }
 
-                            double feeRate =
-                                    type.equals("BUY")
-                                            ? BUY_FEE_RATE
-                                            : SELL_FEE_RATE;
+                                /*
+                                 * حالت مبلغ:
+                                 * تعداد = مبلغ ÷ قیمت
+                                 */
+                                if (q <= 0 &&
+                                        total > 0) {
 
-                            double fee =
-                                    total * feeRate;
+                                    q =
+                                            Math.floor(
+                                                    total / p
+                                            );
 
-                            long id =
-                                    database.addTransactionWithDescription(
-                                            type,
-                                            portfolioText,
-                                            broker.getText()
-                                                    .toString(),
-                                            symbolText,
-                                            q,
-                                            p,
-                                            fee,
-                                            total,
-                                            description.getText()
-                                                    .toString()
-                                    );
+                                    if (q <= 0) {
 
-                            if (id <= 0) {
+                                        Toast.makeText(
+                                                this,
+                                                "مبلغ برای یک سهم کافی نیست",
+                                                Toast.LENGTH_SHORT
+                                        ).show();
+
+                                        return;
+                                    }
+
+                                    total =
+                                            q * p;
+
+                                } else if (q > 0) {
+
+                                    total =
+                                            q * p;
+
+                                } else {
+
+                                    Toast.makeText(
+                                            this,
+                                            "تعداد یا مبلغ کل را وارد کنید",
+                                            Toast.LENGTH_SHORT
+                                    ).show();
+
+                                    return;
+                                }
+
+                                /*
+                                 * کنترل موجودی فروش
+                                 */
+                                if ("SELL".equals(type)) {
+
+                                    double available =
+                                            getCurrentQuantity(
+                                                    portfolioText,
+                                                    symbolText
+                                            );
+
+                                    if (available <= 0) {
+
+                                        Toast.makeText(
+                                                this,
+                                                "این نماد در این سبد موجود نیست",
+                                                Toast.LENGTH_LONG
+                                        ).show();
+
+                                        return;
+                                    }
+
+                                    if (q >
+                                            available + 0.000001) {
+
+                                        Toast.makeText(
+                                                this,
+                                                "فروش بیشتر از موجودی است\n"
+                                                        + "موجودی: "
+                                                        + formatNumber(
+                                                        available
+                                                )
+                                                        + "\nفروش: "
+                                                        + formatNumber(q),
+                                                Toast.LENGTH_LONG
+                                        ).show();
+
+                                        return;
+                                    }
+                                }
+
+                                double feeRate =
+                                        "BUY".equals(type)
+                                                ? BUY_FEE_RATE
+                                                : SELL_FEE_RATE;
+
+                                double fee =
+                                        total * feeRate;
+
+                                long id =
+                                        database
+                                                .addTransactionWithDescription(
+                                                        type,
+                                                        portfolioText,
+                                                        broker.getText()
+                                                                .toString(),
+                                                        symbolText,
+                                                        q,
+                                                        p,
+                                                        fee,
+                                                        total,
+                                                        description.getText()
+                                                                .toString()
+                                                );
+
+                                if (id <= 0) {
+
+                                    Toast.makeText(
+                                            this,
+                                            "ثبت معامله انجام نشد",
+                                            Toast.LENGTH_SHORT
+                                    ).show();
+
+                                    return;
+                                }
+
+                                double finalAmount;
+
+                                String message;
+
+                                if ("BUY".equals(type)) {
+
+                                    /*
+                                     * خرید نهایی =
+                                     * مبلغ معامله + کارمزد
+                                     */
+                                    finalAmount =
+                                            total + fee;
+
+                                    message =
+                                            "خرید ثبت شد\n"
+                                                    + "مبلغ معامله: "
+                                                    + formatNumber(total)
+                                                    + "\nکارمزد: "
+                                                    + formatNumber(fee)
+                                                    + "\nمبلغ نهایی خرید: "
+                                                    + formatNumber(
+                                                    finalAmount
+                                            );
+
+                                } else {
+
+                                    /*
+                                     * دریافتی خالص فروش =
+                                     * مبلغ معامله - کارمزد
+                                     */
+                                    finalAmount =
+                                            total - fee;
+
+                                    message =
+                                            "فروش ثبت شد\n"
+                                                    + "مبلغ فروش: "
+                                                    + formatNumber(total)
+                                                    + "\nکارمزد: "
+                                                    + formatNumber(fee)
+                                                    + "\nدریافتی خالص: "
+                                                    + formatNumber(
+                                                    finalAmount
+                                            );
+                                }
 
                                 Toast.makeText(
                                         this,
-                                        "ثبت معامله انجام نشد",
-                                        Toast.LENGTH_SHORT
+                                        message,
+                                        Toast.LENGTH_LONG
                                 ).show();
 
-                                return;
+                                refreshDashboard();
+
+                            } catch (Exception e) {
+
+                                Toast.makeText(
+                                        this,
+                                        "اطلاعات واردشده صحیح نیست",
+                                        Toast.LENGTH_SHORT
+                                ).show();
                             }
-
-                            String action =
-                                    type.equals("BUY")
-                                            ? "خرید"
-                                            : "فروش";
-
-                            Toast.makeText(
-                                    this,
-                                    action
-                                            + " با موفقیت ثبت شد\n"
-                                            + "مبلغ معامله: "
-                                            + formatNumber(total)
-                                            + "\nکارمزد: "
-                                            + formatNumber(fee),
-                                    Toast.LENGTH_LONG
-                            ).show();
-
-                            refreshDashboard();
-
-                        } catch (Exception e) {
-
-                            Toast.makeText(
-                                    this,
-                                    "اطلاعات واردشده صحیح نیست",
-                                    Toast.LENGTH_SHORT
-                            ).show();
                         }
-                    }
-            )
-            .setNegativeButton(
-                    "انصراف",
-                    null
-            )
-            .show();
-}
+                )
+                .setNegativeButton(
+                        "انصراف",
+                        null
+                )
+                .show();
+    }
 
-private void showCashDialog(String type) {
+    private void showCashDialog(
+            String type) {
 
-    LinearLayout form = createForm();
+        LinearLayout form =
+                createForm();
 
-    EditText portfolio =
-            createField(
-                    "نام سبد",
-                    "اصلی"
-            );
+        EditText portfolio =
+                createField(
+                        "نام سبد",
+                        "اصلی"
+                );
 
-    EditText amount =
-            createField(
-                    "مبلغ",
-                    ""
-            );
+        EditText amount =
+                createField(
+                        "مبلغ",
+                        ""
+                );
 
-    EditText description =
-            createField(
-                    "توضیحات",
-                    ""
-            );
+        EditText description =
+                createField(
+                        "توضیحات",
+                        ""
+                );
 
-    form.addView(portfolio);
-    form.addView(amount);
-    form.addView(description);
+        form.addView(portfolio);
+        form.addView(amount);
+        form.addView(description);
 
-    String title =
-            type.equals("DEPOSIT")
-                    ? "ثبت واریز"
-                    : "ثبت برداشت";
+        String title =
+                "DEPOSIT".equals(type)
+                        ? "ثبت واریز"
+                        : "ثبت برداشت";
 
-    new AlertDialog.Builder(this)
-            .setTitle(title)
-            .setView(form)
-            .setPositiveButton(
-                    "ثبت",
-                    (dialog, which) -> {
+        new AlertDialog.Builder(this)
+                .setTitle(title)
+                .setView(form)
+                .setPositiveButton(
+                        "ثبت",
+                        (dialog, which) -> {
 
-                        try {
+                            try {
 
-                            double value =
-                                    number(
-                                            amount.getText()
-                                                    .toString()
-                                    );
+                                double value =
+                                        number(
+                                                amount.getText()
+                                                        .toString()
+                                        );
 
-                            if (value <= 0) {
+                                if (value <= 0) {
+
+                                    Toast.makeText(
+                                            this,
+                                            "مبلغ باید بیشتر از صفر باشد",
+                                            Toast.LENGTH_SHORT
+                                    ).show();
+
+                                    return;
+                                }
+
+                                long id =
+                                        database
+                                                .addTransactionWithDescription(
+                                                        type,
+                                                        normalizePortfolio(
+                                                                portfolio
+                                                                        .getText()
+                                                                        .toString()
+                                                        ),
+                                                        "",
+                                                        "",
+                                                        0,
+                                                        0,
+                                                        0,
+                                                        value,
+                                                        description
+                                                                .getText()
+                                                                .toString()
+                                                );
+
+                                if (id <= 0) {
+
+                                    Toast.makeText(
+                                            this,
+                                            "ثبت انجام نشد",
+                                            Toast.LENGTH_SHORT
+                                    ).show();
+
+                                    return;
+                                }
 
                                 Toast.makeText(
                                         this,
-                                        "مبلغ باید بیشتر از صفر باشد",
+                                        "عملیات با موفقیت ثبت شد",
                                         Toast.LENGTH_SHORT
                                 ).show();
 
-                                return;
-                            }
+                                refreshDashboard();
 
-                            long id =
-                                    database.addTransactionWithDescription(
-                                            type,
-                                            normalizePortfolio(
-                                                    portfolio.getText()
-                                                            .toString()
-                                            ),
-                                            "",
-                                            "",
-                                            0,
-                                            0,
-                                            0,
-                                            value,
-                                            description.getText()
-                                                    .toString()
-                                    );
-
-                            if (id <= 0) {
+                            } catch (Exception e) {
 
                                 Toast.makeText(
                                         this,
-                                        "ثبت انجام نشد",
+                                        "مبلغ صحیح نیست",
                                         Toast.LENGTH_SHORT
                                 ).show();
-
-                                return;
                             }
-
-                            Toast.makeText(
-                                    this,
-                                    type.equals("DEPOSIT")
-                                            ? "واریز ثبت شد"
-                                            : "برداشت ثبت شد",
-                                    Toast.LENGTH_SHORT
-                            ).show();
-
-                            refreshDashboard();
-
-                        } catch (Exception e) {
-
-                            Toast.makeText(
-                                    this,
-                                    "مبلغ واردشده صحیح نیست",
-                                    Toast.LENGTH_SHORT
-                            ).show();
                         }
-                    }
-            )
-            .setNegativeButton(
-                    "انصراف",
-                    null
-            )
-            .show();
-}
-
-private Map<String, PortfolioEngine.Position>
-calculatePositions() {
-
-    Cursor cursor =
-            database.getAllTransactions();
-
-    try {
-
-        return PortfolioEngine.calculate(cursor);
-
-    } finally {
-
-        cursor.close();
-    }
-}
-
-private void refreshDashboard() {
-
-    if (dashboard == null) {
-        return;
+                )
+                .setNegativeButton(
+                        "انصراف",
+                        null
+                )
+                .show();
     }
 
-    Map<String, PortfolioEngine.Position>
-            positions =
-            calculatePositions();
+    private void refreshDashboard() {
 
-    StringBuilder result =
-            new StringBuilder();
+        Map<String, PortfolioEngine.Position>
+                positions =
+                calculatePositions();
 
-    result.append(
-            "📊 وضعیت سبدها\n\n"
-    );
+        StringBuilder result =
+                new StringBuilder();
 
-    boolean hasPosition = false;
+        result.append(
+                "📊 داشبورد سبدها\n\n"
+        );
 
-    double totalCost = 0;
-    double totalRealized = 0;
-    double totalFees = 0;
+        double totalCurrentCost = 0;
+        double totalRealizedProfit = 0;
+        double totalBuyCost = 0;
+        double totalSellNet = 0;
+        double totalFees = 0;
 
-    Map<String, Double> cashByPortfolio =
-            new LinkedHashMap<>();
+        boolean found = false;
 
-    Cursor cashCursor =
-            database.getAllTransactions();
+        for (PortfolioEngine.Position position
+                : positions.values()) {
 
-    try {
+            totalCurrentCost +=
+                    position.cost;
 
-        while (cashCursor.moveToNext()) {
+            totalRealizedProfit +=
+                    position.realizedProfit;
 
-            String portfolio =
-                    cashCursor.getString(
-                            cashCursor.getColumnIndexOrThrow(
-                                    "portfolio"
-                            )
-                    );
+            totalBuyCost +=
+                    position.totalBuyCost();
 
-            String type =
-                    cashCursor.getString(
-                            cashCursor.getColumnIndexOrThrow(
-                                    "type"
-                            )
-                    );
+            totalSellNet +=
+                    position.totalSellNet();
 
-            double amount =
-                    cashCursor.getDouble(
-                            cashCursor.getColumnIndexOrThrow(
-                                    "amount"
-                            )
-                    );
+            totalFees +=
+                    position.buyFees
+                            + position.sellFees;
 
-            double fee =
-                    cashCursor.getDouble(
-                            cashCursor.getColumnIndexOrThrow(
-                                    "fee"
-                            )
-                    );
+            if (position.quantity <= 0 &&
+                    position.sellQuantity <= 0) {
 
-            totalFees += fee;
-
-            if (portfolio == null ||
-                    portfolio.trim().isEmpty()) {
-                portfolio = "اصلی";
+                continue;
             }
 
-            double cash =
-                    cashByPortfolio.containsKey(portfolio)
-                            ? cashByPortfolio.get(portfolio)
-                            : 0;
-
-            if ("DEPOSIT".equals(type)) {
-                cash += amount;
-            } else if ("WITHDRAW".equals(type)) {
-                cash -= amount;
-            } else if ("BUY".equals(type)) {
-                cash -= amount + fee;
-            } else if ("SELL".equals(type)) {
-                cash += amount - fee;
-            }
-
-            cashByPortfolio.put(
-                    portfolio,
-                    cash
-            );
-        }
-
-    } finally {
-        cashCursor.close();
-    }
-
-    for (PortfolioEngine.Position position
-            : positions.values()) {
-
-        totalRealized +=
-                position.realizedProfit;
-
-        /*
-         * حتی اگر تعداد صفر شده باشد،
-         * سود/زیان تحقق‌یافته را نشان می‌دهیم.
-         */
-        if (position.quantity <= 0 &&
-                Math.abs(position.realizedProfit) < 0.000001) {
-            continue;
-        }
-
-        hasPosition = true;
-
-        totalCost +=
-                position.cost;
-
-        result.append(
-                "سبد: "
-        ).append(
-                position.portfolio
-        ).append("\n");
-
-        result.append(
-                "نماد: "
-        ).append(
-                position.symbol
-        ).append("\n");
-
-        result.append(
-                "تعداد فعلی: "
-        ).append(
-                formatNumber(
-                        position.quantity
-                )
-        ).append("\n");
-
-        result.append(
-                "میانگین خرید: "
-        ).append(
-                formatNumber(
-                        position.averagePrice()
-                )
-        ).append("\n");
-
-        result.append(
-                "بهای تمام‌شده فعلی: "
-        ).append(
-                formatNumber(
-                        position.cost
-                )
-        ).append("\n");
-
-        result.append(
-                "سود/زیان تحقق‌یافته: "
-        ).append(
-                formatNumber(
-                        position.realizedProfit
-                )
-        ).append("\n");
-
-        result.append(
-                "--------------------\n"
-        );
-    }
-
-    result.append(
-            "\n💵 موجودی نقدی سبدها\n\n"
-    );
-
-    if (cashByPortfolio.isEmpty()) {
-
-        result.append(
-                "هنوز واریز یا برداشت ثبت نشده است.\n"
-        );
-
-    } else {
-
-        for (Map.Entry<String, Double> entry
-                : cashByPortfolio.entrySet()) {
+            found = true;
 
             result.append(
-                    entry.getKey()
-            ).append(
-                    ": "
-            ).append(
-                    formatNumber(
-                            entry.getValue()
-                    )
-            ).append(
-                    "\n"
+                    "━━━━━━━━━━━━━━━━━━\n"
             );
-        }
-    }
-
-    result.append("\n");
-
-    result.append(
-            "💵 مجموع بهای تمام‌شده: "
-    ).append(
-            formatNumber(totalCost)
-    ).append("\n");
-
-    result.append(
-            "📈 مجموع سود/زیان تحقق‌یافته: "
-    ).append(
-            formatNumber(totalRealized)
-    ).append("\n");
-
-    result.append(
-            "🧾 مجموع کارمزدها: "
-    ).append(
-            formatNumber(totalFees)
-    ).append("\n");
-
-    if (!hasPosition) {
-
-        result.append(
-                "\nهنوز سهمی در سبدها ثبت نشده است."
-        );
-    }
-
-    dashboard.setText(
-            result.toString()
-    );
-}
-
-private void showPortfolioDialog() {
-
-    Map<String, PortfolioEngine.Position>
-            positions =
-            calculatePositions();
-
-    StringBuilder result =
-            new StringBuilder();
-
-    result.append(
-            "📊 گزارش سبدها\n\n"
-    );
-
-    boolean found = false;
-
-    for (PortfolioEngine.Position position
-            : positions.values()) {
-
-        if (position.quantity <= 0 &&
-                Math.abs(position.realizedProfit) < 0.000001) {
-            continue;
-        }
-
-        found = true;
-
-        result.append(
-                "سبد: "
-        ).append(
-                position.portfolio
-        ).append("\n");
-
-        result.append(
-                "نماد: "
-        ).append(
-                position.symbol
-        ).append("\n");
-
-        result.append(
-                "تعداد فعلی: "
-        ).append(
-                formatNumber(
-                        position.quantity
-                )
-        ).append("\n");
-
-        result.append(
-                "میانگین خرید: "
-        ).append(
-                formatNumber(
-                        position.averagePrice()
-                )
-        ).append("\n");
-
-        result.append(
-                "بهای تمام‌شده: "
-        ).append(
-                formatNumber(
-                        position.cost
-                )
-        ).append("\n");
-
-        result.append(
-                "سود/زیان تحقق‌یافته: "
-        ).append(
-                formatNumber(
-                        position.realizedProfit
-                )
-        ).append("\n");
-
-        result.append(
-                "--------------------\n"
-        );
-    }
-
-    if (!found) {
-
-        result.append(
-                "هنوز معامله‌ای ثبت نشده است."
-        );
-    }
-
-    ScrollView scroll =
-            new ScrollView(this);
-
-    TextView text =
-            createText(
-                    result.toString(),
-                    16,
-                    false
-            );
-
-    scroll.addView(text);
-
-    new AlertDialog.Builder(this)
-            .setTitle("داشبورد سبدها")
-            .setView(scroll)
-            .setPositiveButton(
-                    "بستن",
-                    null
-            )
-            .show();
-}
-
-private void showHistoryDialog() {
-
-    Cursor cursor =
-            database.getAllTransactions();
-
-    StringBuilder result =
-            new StringBuilder();
-
-    int count = 0;
-
-    try {
-
-        while (cursor.moveToNext()) {
-
-            count++;
-
-            long id =
-                    cursor.getLong(
-                            cursor.getColumnIndexOrThrow(
-                                    "id"
-                            )
-                    );
-
-            String type =
-                    cursor.getString(
-                            cursor.getColumnIndexOrThrow(
-                                    "type"
-                            )
-                    );
-
-            String portfolio =
-                    cursor.getString(
-                            cursor.getColumnIndexOrThrow(
-                                    "portfolio"
-                            )
-                    );
-
-            String broker =
-                    cursor.getString(
-                            cursor.getColumnIndexOrThrow(
-                                    "broker"
-                            )
-                    );
-
-            String symbol =
-                    cursor.getString(
-                            cursor.getColumnIndexOrThrow(
-                                    "symbol"
-                            )
-                    );
-
-            double quantity =
-                    cursor.getDouble(
-                            cursor.getColumnIndexOrThrow(
-                                    "quantity"
-                            )
-                    );
-
-            double price =
-                    cursor.getDouble(
-                            cursor.getColumnIndexOrThrow(
-                                    "price"
-                            )
-                    );
-
-            double fee =
-                    cursor.getDouble(
-                            cursor.getColumnIndexOrThrow(
-                                    "fee"
-                            )
-                    );
-
-            double amount =
-                    cursor.getDouble(
-                            cursor.getColumnIndexOrThrow(
-                                    "amount"
-                            )
-                    );
-
-            String description =
-                    cursor.getString(
-                            cursor.getColumnIndexOrThrow(
-                                    "description"
-                            )
-                    );
-
-            long date =
-                    cursor.getLong(
-                            cursor.getColumnIndexOrThrow(
-                                    "date"
-                            )
-                    );
-
-            String action;
-
-            if ("BUY".equals(type)) {
-                action = "🟢 خرید";
-            } else if ("SELL".equals(type)) {
-                action = "🔴 فروش";
-            } else if ("DEPOSIT".equals(type)) {
-                action = "💰 واریز";
-            } else {
-                action = "💸 برداشت";
-            }
-
-            result.append(
-                    "شناسه: "
-            ).append(
-                    id
-            ).append("\n");
-
-            result.append(
-                    action
-            ).append(
-                    " | "
-            ).append(
-                    formatDate(date)
-            ).append("\n");
 
             result.append(
                     "سبد: "
             ).append(
-                    portfolio == null
-                            ? "اصلی"
-                            : portfolio
+                    position.portfolio
             ).append("\n");
 
-            if (broker != null &&
-                    !broker.trim().isEmpty()) {
-
-                result.append(
-                        "کارگزاری: "
-                ).append(
-                        broker
-                ).append("\n");
-            }
-
-            if (symbol != null &&
-                    !symbol.trim().isEmpty()) {
-
-                result.append(
-                        "نماد: "
-                ).append(
-                        symbol
-                ).append("\n");
-            }
-
-            if (quantity > 0) {
-
-                result.append(
-                        "تعداد: "
-                ).append(
-                        formatNumber(quantity)
-                ).append("\n");
-            }
-
-            if (price > 0) {
-
-                result.append(
-                        "قیمت: "
-                ).append(
-                        formatNumber(price)
-                ).append("\n");
-            }
-
-            if (amount > 0) {
-
-                result.append(
-                        "مبلغ معامله: "
-                ).append(
-                        formatNumber(amount)
-                ).append("\n");
-            }
-
-            if (fee > 0) {
-
-                result.append(
-                        "کارمزد: "
-                ).append(
-                        formatNumber(fee)
-                ).append("\n");
-            }
-
-            if (description != null &&
-                    !description.trim().isEmpty()) {
-
-                result.append(
-                        "توضیحات: "
-                ).append(
-                        description
-                ).append("\n");
-            }
+            result.append(
+                    "نماد: "
+            ).append(
+                    position.symbol
+            ).append("\n\n");
 
             result.append(
-                    "--------------------\n\n"
+                    "📦 تعداد فعلی: "
+            ).append(
+                    formatNumber(
+                            position.quantity
+                    )
+            ).append("\n");
+
+            result.append(
+                    "🟢 میانگین خرید: "
+            ).append(
+                    formatNumber(
+                            position.averageBuyPrice()
+                    )
+            ).append("\n");
+
+            result.append(
+                    "🔴 میانگین فروش: "
+            ).append(
+                    formatNumber(
+                            position.averageSellPrice()
+                    )
+            ).append("\n");
+
+            result.append(
+                    "💰 بهای تمام‌شده فعلی: "
+            ).append(
+                    formatNumber(
+                            position.cost
+                    )
+            ).append("\n\n");
+
+            result.append(
+                    "خرید کل: "
+            ).append(
+                    formatNumber(
+                            position.buyAmount
+                    )
+            ).append("\n");
+
+            result.append(
+                    "کارمزد خرید: "
+            ).append(
+                    formatNumber(
+                            position.buyFees
+                    )
+            ).append("\n");
+
+            result.append(
+                    "نهایی خرید: "
+            ).append(
+                    formatNumber(
+                            position.totalBuyCost()
+                    )
+            ).append("\n\n");
+
+            result.append(
+                    "فروش کل: "
+            ).append(
+                    formatNumber(
+                            position.sellAmount
+                    )
+            ).append("\n");
+
+            result.append(
+                    "کارمزد فروش: "
+            ).append(
+                    formatNumber(
+                            position.sellFees
+                    )
+            ).append("\n");
+
+            result.append(
+                    "دریافتی خالص فروش: "
+            ).append(
+                    formatNumber(
+                            position.totalSellNet()
+                    )
+            ).append("\n\n");
+
+            result.append(
+                    "📈 سود تحقق‌یافته: "
+            ).append(
+                    formatNumber(
+                            position.realizedProfit
+                    )
+            ).append("\n");
+        }
+
+        result.append(
+                "\n━━━━━━━━━━━━━━━━━━\n"
+        );
+
+        result.append(
+                "📊 خلاصه کل\n\n"
+        );
+
+        result.append(
+                "مجموع خرید با کارمزد: "
+        ).append(
+                formatNumber(totalBuyCost)
+        ).append("\n");
+
+        result.append(
+                "مجموع فروش خالص: "
+        ).append(
+                formatNumber(totalSellNet)
+        ).append("\n");
+
+        result.append(
+                "مجموع کارمزد: "
+        ).append(
+                formatNumber(totalFees)
+        ).append("\n");
+
+        result.append(
+                "سود تحقق‌یافته: "
+        ).append(
+                formatNumber(totalRealizedProfit)
+        ).append("\n");
+
+        result.append(
+                "بهای تمام‌شده سهام فعلی: "
+        ).append(
+                formatNumber(totalCurrentCost)
+        ).append("\n");
+
+        if (!found) {
+
+            result.append(
+                    "\nهنوز سهمی در سبد ثبت نشده است."
             );
         }
 
-    } finally {
-
-        cursor.close();
-    }
-
-    if (count == 0) {
-
-        result.append(
-                "تراکنشی ثبت نشده است."
+        dashboard.setText(
+                result.toString()
         );
     }
 
-    ScrollView scroll =
-            new ScrollView(this);
+    private void showPortfolioDialog() {
 
-    TextView text =
-            createText(
-                    result.toString(),
-                    16,
-                    false
+        Map<String, PortfolioEngine.Position>
+                positions =
+                calculatePositions();
+
+        StringBuilder result =
+                new StringBuilder();
+
+        result.append(
+                "📊 گزارش کامل سبدها\n\n"
+        );
+
+        boolean found = false;
+
+        for (PortfolioEngine.Position position
+                : positions.values()) {
+
+            if (position.quantity <= 0 &&
+                    position.sellQuantity <= 0) {
+
+                continue;
+            }
+
+            found = true;
+
+            result.append(
+                    "سبد: "
+            ).append(
+                    position.portfolio
+            ).append("\n");
+
+            result.append(
+                    "نماد: "
+            ).append(
+                    position.symbol
+            ).append("\n");
+
+            result.append(
+                    "تعداد: "
+            ).append(
+                    formatNumber(
+                            position.quantity
+                    )
+            ).append("\n");
+
+            result.append(
+                    "میانگین خرید: "
+            ).append(
+                    formatNumber(
+                            position.averageBuyPrice()
+                    )
+            ).append("\n");
+
+            result.append(
+                    "میانگین فروش: "
+            ).append(
+                    formatNumber(
+                            position.averageSellPrice()
+                    )
+            ).append("\n");
+
+            result.append(
+                    "سود تحقق‌یافته: "
+            ).append(
+                    formatNumber(
+                            position.realizedProfit
+                    )
+            ).append("\n");
+
+            result.append(
+                    "--------------------\n"
             );
+        }
 
-    scroll.addView(text);
+        if (!found) {
 
-    new AlertDialog.Builder(this)
-            .setTitle("تاریخچه معاملات")
-            .setView(scroll)
-            .setPositiveButton(
-                    "بستن",
-                    null
-            )
-            .show();
-}
+            result.append(
+                    "هنوز معامله‌ای ثبت نشده است."
+            );
+        }
 
-@Override
-protected void onDestroy() {
+        ScrollView scroll =
+                new ScrollView(this);
 
-    if (database != null) {
-        database.close();
+        scroll.addView(
+                createText(
+                        result.toString(),
+                        16,
+                        false
+                )
+        );
+
+        new AlertDialog.Builder(this)
+                .setTitle(
+                        "داشبورد سبدها"
+                )
+                .setView(scroll)
+                .setPositiveButton(
+                        "بستن",
+                        null
+                )
+                .show();
     }
 
-    super.onDestroy();
-}
+    private void showHistoryDialog() {
 
+        Cursor cursor =
+                database.getAllTransactions();
+
+        StringBuilder result =
+                new StringBuilder();
+
+        try {
+
+            while (cursor.moveToNext()) {
+
+                String type =
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow(
+                                        "type"
+                                )
+                        );
+
+                String portfolio =
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow(
+                                        "portfolio"
+                                )
+                        );
+
+                String broker =
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow(
+                                        "broker"
+                                )
+                        );
+
+                String symbol =
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow(
+                                        "symbol"
+                                )
+                        );
+
+                double quantity =
+                        cursor.getDouble(
+                                cursor.getColumnIndexOrThrow(
+                                        "quantity"
+                                )
+                        );
+
+                double price =
+                        cursor.getDouble(
+                                cursor.getColumnIndexOrThrow(
+                                        "price"
+                                )
+                        );
+
+                double fee =
+                        cursor.getDouble(
+                                cursor.getColumnIndexOrThrow(
+                                        "fee"
+                                )
+                        );
+
+                double amount =
+                        cursor.getDouble(
+                                cursor.getColumnIndexOrThrow(
+                                        "amount"
+                                )
+                        );
+
+                String description =
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow(
+                                        "description"
+                                )
+                        );
+
+                String shamsiDate = "";
+
+                int dateColumn =
+                        cursor.getColumnIndex(
+                                "date_shamsi"
+                        );
+
+                if (dateColumn >= 0) {
+
+                    shamsiDate =
+                            cursor.getString(
+                                    dateColumn
+                            );
+                }
+
+                String action;
+
+                if ("BUY".equals(type)) {
+
+                    action = "🟢 خرید";
+
+                } else if ("SELL".equals(type)) {
+
+                    action = "🔴 فروش";
+
+                } else if ("DEPOSIT".equals(type)) {
+
+                    action = "💰 واریز";
+
+                } else {
+
+                    action = "💸 برداشت";
+                }
+
+                result.append(
+                        action
+                ).append("\n");
+
+                /*
+                 * تاریخ از date_shamsi خوانده می‌شود،
+                 * بنابراین دیگر میلادی نمایش داده نمی‌شود.
+                 */
+                result.append(
+                        "📅 تاریخ: "
+                ).append(
+                        shamsiDate == null ||
+                                shamsiDate.isEmpty()
+                                ? "بدون تاریخ"
+                                : shamsiDate
+                ).append("\n");
+
+                result.append(
+                        "سبد: "
+                ).append(
+                        portfolio == null
+                                ? "اصلی"
+                                : portfolio
+                ).append("\n");
+
+                if (broker != null &&
+                        !broker.trim().isEmpty()) {
+
+                    result.append(
+                            "کارگزاری: "
+                    ).append(
+                            broker
+                    ).append("\n");
+                }
+
+                if (symbol != null &&
+                        !symbol.trim().isEmpty()) {
+
+                    result.append(
+                            "نماد: "
+                    ).append(
+                            symbol
+                    ).append("\n");
+                }
+
+                if (quantity > 0) {
+
+                    result.append(
+                            "تعداد: "
+                    ).append(
+                            formatNumber(quantity)
+                    ).append("\n");
+                }
+
+                if (price > 0) {
+
+                    result.append(
+                            "قیمت: "
+                    ).append(
+                            formatNumber(price)
+                    ).append("\n");
+                }
+
+                if (amount > 0) {
+
+                    result.append(
+                            "مبلغ معامله: "
+                    ).append(
+                            formatNumber(amount)
+                    ).append("\n");
+                }
+
+                if (fee > 0) {
+
+                    result.append(
+                            "کارمزد: "
+                    ).append(
+                            formatNumber(fee)
+                    ).append("\n");
+
+                    if ("BUY".equals(type)) {
+
+                        result.append(
+                                "مبلغ نهایی خرید: "
+                        ).append(
+                                formatNumber(
+                                        amount + fee
+                                )
+                        ).append("\n");
+
+                    } else if ("SELL".equals(type)) {
+
+                        result.append(
+                                "دریافتی خالص فروش: "
+                        ).append(
+                                formatNumber(
+                                        amount - fee
+                                )
+                        ).append("\n");
+                    }
+                }
+
+                if (description != null &&
+                        !description.trim().isEmpty()) {
+
+                    result.append(
+                            "توضیحات: "
+                    ).append(
+                            description
+                    ).append("\n");
+                }
+
+                result.append(
+                        "--------------------\n\n"
+                );
+            }
+
+        } finally {
+
+            cursor.close();
+        }
+
+        if (result.length() == 0) {
+
+            result.append(
+                    "تراکنشی ثبت نشده است."
+            );
+        }
+
+        ScrollView scroll =
+                new ScrollView(this);
+
+        scroll.addView(
+                createText(
+                        result.toString(),
+                        16,
+                        false
+                )
+        );
+
+        new AlertDialog.Builder(this)
+                .setTitle(
+                        "تاریخچه معاملات"
+                )
+                .setView(scroll)
+                .setPositiveButton(
+                        "بستن",
+                        null
+                )
+                .show();
+    }
+
+    @Override
+    protected void onDestroy() {
+
+        if (database != null) {
+            database.close();
+        }
+
+        super.onDestroy();
+    }
 }
