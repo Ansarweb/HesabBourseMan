@@ -6,20 +6,35 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.Locale;
+
 public class DatabaseHelper extends SQLiteOpenHelper {
 
-    private static final String DB_NAME = "hesab_bourse.db";
-    private static final int DB_VERSION = 5;
+    private static final String DATABASE_NAME =
+            "hesab_bourse.db";
+
+    private static final int DB_VERSION = 6;
+
+    private static final String TABLE =
+            "transactions";
 
     public DatabaseHelper(Context context) {
-        super(context, DB_NAME, null, DB_VERSION);
+        super(
+                context,
+                DATABASE_NAME,
+                null,
+                DB_VERSION
+        );
     }
 
     @Override
     public void onCreate(SQLiteDatabase db) {
 
         db.execSQL(
-                "CREATE TABLE transactions (" +
+                "CREATE TABLE " + TABLE + " (" +
                         "id INTEGER PRIMARY KEY AUTOINCREMENT," +
                         "type TEXT NOT NULL," +
                         "portfolio TEXT DEFAULT 'اصلی'," +
@@ -30,7 +45,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                         "fee REAL DEFAULT 0," +
                         "amount REAL DEFAULT 0," +
                         "description TEXT DEFAULT ''," +
-                        "date INTEGER NOT NULL)"
+                        "date INTEGER NOT NULL," +
+                        "date_shamsi TEXT DEFAULT ''" +
+                        ")"
         );
     }
 
@@ -40,37 +57,189 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             int oldVersion,
             int newVersion) {
 
-        if (oldVersion < 2) {
-            addColumnIfMissing(
-                    db,
-                    "portfolio",
-                    "TEXT DEFAULT 'اصلی'"
-            );
-        }
-
         if (oldVersion < 5) {
-            addColumnIfMissing(
-                    db,
-                    "description",
-                    "TEXT DEFAULT ''"
-            );
+
+            try {
+                db.execSQL(
+                        "ALTER TABLE " + TABLE +
+                                " ADD COLUMN description TEXT DEFAULT ''"
+                );
+            } catch (Exception ignored) {
+            }
+        }
+
+        if (oldVersion < 6) {
+
+            try {
+                db.execSQL(
+                        "ALTER TABLE " + TABLE +
+                                " ADD COLUMN date_shamsi TEXT DEFAULT ''"
+                );
+            } catch (Exception ignored) {
+            }
+
+            fillOldPersianDates(db);
         }
     }
 
-    private void addColumnIfMissing(
-            SQLiteDatabase db,
-            String column,
-            String definition) {
+    /*
+     * تبدیل تاریخ میلادی به شمسی
+     */
+    public static String toPersianDate(long timeMillis) {
 
-        try {
-            db.execSQL(
-                    "ALTER TABLE transactions ADD COLUMN "
-                            + column + " " + definition
-            );
-        } catch (Exception ignored) {
+        Calendar calendar =
+                Calendar.getInstance();
+
+        calendar.setTimeInMillis(timeMillis);
+
+        int gy =
+                calendar.get(Calendar.YEAR);
+
+        int gm =
+                calendar.get(Calendar.MONTH) + 1;
+
+        int gd =
+                calendar.get(Calendar.DAY_OF_MONTH);
+
+        int[] gDaysInMonth = {
+                0,
+                31, 28, 31, 30, 31, 30,
+                31, 31, 30, 31, 30, 31
+        };
+
+        int gy2 =
+                gy - 1600;
+
+        int gm2 =
+                gm - 1;
+
+        int gd2 =
+                gd - 1;
+
+        int gDayNo =
+                365 * gy2
+                        + (gy2 + 3) / 4
+                        - (gy2 + 99) / 100
+                        + (gy2 + 399) / 400;
+
+        for (int i = 0; i < gm2; i++) {
+
+            gDayNo +=
+                    gDaysInMonth[i + 1];
         }
+
+        if (gm2 > 1 &&
+                ((gy % 4 == 0 && gy % 100 != 0)
+                        || (gy % 400 == 0))) {
+
+            gDayNo++;
+        }
+
+        gDayNo += gd2;
+
+        int jDayNo =
+                gDayNo - 79;
+
+        int jNp =
+                jDayNo / 12053;
+
+        int jDayNo2 =
+                jDayNo % 12053;
+
+        int jy =
+                979 + 33 * jNp
+                        + 4 * (jDayNo2 / 1461);
+
+        jDayNo2 =
+                jDayNo2 % 1461;
+
+        if (jDayNo2 >= 366) {
+
+            jy +=
+                    (jDayNo2 - 1) / 365;
+
+            jDayNo2 =
+                    (jDayNo2 - 1) % 365;
+        }
+
+        int jm;
+        int jd;
+
+        if (jDayNo2 < 186) {
+
+            jm =
+                    1 + jDayNo2 / 31;
+
+            jd =
+                    1 + jDayNo2 % 31;
+
+        } else {
+
+            jm =
+                    7 + (jDayNo2 - 186) / 30;
+
+            jd =
+                    1 + (jDayNo2 - 186) % 30;
+        }
+
+        int hour =
+                calendar.get(Calendar.HOUR_OF_DAY);
+
+        int minute =
+                calendar.get(Calendar.MINUTE);
+
+        int second =
+                calendar.get(Calendar.SECOND);
+
+        return String.format(
+                Locale.US,
+                "%04d/%02d/%02d %02d:%02d:%02d",
+                jy,
+                jm,
+                jd,
+                hour,
+                minute,
+                second
+        );
     }
 
+    /*
+     * اعداد انگلیسی تاریخ را به فارسی تبدیل می‌کند.
+     */
+    public static String toPersianDigits(
+            String text) {
+
+        if (text == null) {
+            return "";
+        }
+
+        return text
+                .replace("0", "۰")
+                .replace("1", "۱")
+                .replace("2", "۲")
+                .replace("3", "۳")
+                .replace("4", "۴")
+                .replace("5", "۵")
+                .replace("6", "۶")
+                .replace("7", "۷")
+                .replace("8", "۸")
+                .replace("9", "۹");
+    }
+
+    /*
+     * تاریخ شمسی با اعداد فارسی
+     */
+    public static String toPersianDateTime(
+            long timeMillis) {
+
+        return toPersianDigits(
+                toPersianDate(timeMillis)
+        );
+    }
+
+    /*
+     * ثبت عمومی تراکنش
+     */
     public long addTransaction(
             String type,
             String portfolio,
@@ -94,6 +263,11 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         );
     }
 
+    /*
+     * ثبت تراکنش همراه توضیحات
+     *
+     * تاریخ و ساعت به‌صورت خودکار ثبت می‌شود.
+     */
     public long addTransactionWithDescription(
             String type,
             String portfolio,
@@ -105,48 +279,172 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             double amount,
             String description) {
 
-        ContentValues values = new ContentValues();
+        SQLiteDatabase db =
+                getWritableDatabase();
 
-        values.put("type", type);
+        long now =
+                System.currentTimeMillis();
+
+        String shamsiDate =
+                toPersianDateTime(now);
+
+        ContentValues values =
+                new ContentValues();
+
+        values.put(
+                "type",
+                type == null ? "" : type
+        );
+
         values.put(
                 "portfolio",
-                normalizePortfolio(portfolio)
+                portfolio == null ||
+                        portfolio.trim().isEmpty()
+                        ? "اصلی"
+                        : portfolio.trim()
         );
 
         values.put(
                 "broker",
-                broker == null ? "" : broker.trim()
+                broker == null ? "" : broker
         );
 
         values.put(
                 "symbol",
-                symbol == null ? "" : symbol.trim()
+                symbol == null ? "" : symbol
         );
 
-        values.put("quantity", quantity);
-        values.put("price", price);
-        values.put("fee", fee);
-        values.put("amount", amount);
+        values.put(
+                "quantity",
+                quantity
+        );
+
+        values.put(
+                "price",
+                price
+        );
+
+        values.put(
+                "fee",
+                fee
+        );
+
+        values.put(
+                "amount",
+                amount
+        );
 
         values.put(
                 "description",
                 description == null
                         ? ""
-                        : description.trim()
+                        : description
         );
 
         values.put(
                 "date",
-                System.currentTimeMillis()
+                now
         );
 
-        return getWritableDatabase().insert(
-                "transactions",
+        values.put(
+                "date_shamsi",
+                shamsiDate
+        );
+
+        return db.insert(
+                TABLE,
                 null,
                 values
         );
     }
 
+    /*
+     * دریافت همه تراکنش‌ها
+     * جدیدترین عملیات اول نمایش داده می‌شود.
+     */
+    public Cursor getAllTransactions() {
+
+        SQLiteDatabase db =
+                getReadableDatabase();
+
+        return db.query(
+                TABLE,
+                null,
+                null,
+                null,
+                null,
+                null,
+                "date DESC, id DESC"
+        );
+    }
+
+    /*
+     * دریافت یک تراکنش
+     */
+    public Cursor getTransaction(
+            long id) {
+
+        SQLiteDatabase db =
+                getReadableDatabase();
+
+        return db.query(
+                TABLE,
+                null,
+                "id=?",
+                new String[]{
+                        String.valueOf(id)
+                },
+                null,
+                null,
+                null
+        );
+    }
+
+    /*
+     * جستجوی تراکنش‌ها
+     */
+    public Cursor searchTransactions(
+            String query) {
+
+        SQLiteDatabase db =
+                getReadableDatabase();
+
+        String q =
+                query == null
+                        ? ""
+                        : query.trim();
+
+        if (q.isEmpty()) {
+            return getAllTransactions();
+        }
+
+        String like =
+                "%" + q + "%";
+
+        return db.query(
+                TABLE,
+                null,
+                "symbol LIKE ? OR " +
+                        "portfolio LIKE ? OR " +
+                        "broker LIKE ? OR " +
+                        "description LIKE ? OR " +
+                        "date_shamsi LIKE ?",
+                new String[]{
+                        like,
+                        like,
+                        like,
+                        like,
+                        like
+                },
+                null,
+                null,
+                "date DESC, id DESC"
+        );
+    }
+
+    /*
+     * ویرایش تراکنش
+     */
     public int updateTransaction(
             long id,
             String type,
@@ -157,160 +455,258 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             double price,
             double fee,
             double amount,
-            String description,
-            long date) {
+            String description) {
 
-        ContentValues values = new ContentValues();
+        SQLiteDatabase db =
+                getWritableDatabase();
 
-        values.put("type", type);
+        ContentValues values =
+                new ContentValues();
+
+        values.put(
+                "type",
+                type == null ? "" : type
+        );
+
         values.put(
                 "portfolio",
-                normalizePortfolio(portfolio)
+                portfolio == null ||
+                        portfolio.trim().isEmpty()
+                        ? "اصلی"
+                        : portfolio.trim()
         );
 
         values.put(
                 "broker",
-                broker == null ? "" : broker.trim()
+                broker == null ? "" : broker
         );
 
         values.put(
                 "symbol",
-                symbol == null ? "" : symbol.trim()
+                symbol == null ? "" : symbol
         );
 
-        values.put("quantity", quantity);
-        values.put("price", price);
-        values.put("fee", fee);
-        values.put("amount", amount);
+        values.put(
+                "quantity",
+                quantity
+        );
+
+        values.put(
+                "price",
+                price
+        );
+
+        values.put(
+                "fee",
+                fee
+        );
+
+        values.put(
+                "amount",
+                amount
+        );
 
         values.put(
                 "description",
                 description == null
                         ? ""
-                        : description.trim()
+                        : description
         );
 
-        values.put("date", date);
-
-        return getWritableDatabase().update(
-                "transactions",
+        /*
+         * در ویرایش، تاریخ عملیات اصلی
+         * دست‌نخورده باقی می‌ماند.
+         */
+        return db.update(
+                TABLE,
                 values,
-                "id = ?",
+                "id=?",
                 new String[]{
                         String.valueOf(id)
                 }
         );
     }
 
-    public int deleteTransaction(long id) {
+    /*
+     * حذف تراکنش
+     */
+    public int deleteTransaction(
+            long id) {
 
-        return getWritableDatabase().delete(
-                "transactions",
-                "id = ?",
+        SQLiteDatabase db =
+                getWritableDatabase();
+
+        return db.delete(
+                TABLE,
+                "id=?",
                 new String[]{
                         String.valueOf(id)
                 }
         );
     }
 
-    public Cursor getTransaction(long id) {
+    /*
+     * محاسبه موجودی نقدی یک سبد
+     */
+    public double getCashBalance(
+            String portfolio) {
 
-        return getReadableDatabase().query(
-                "transactions",
-                null,
-                "id = ?",
-                new String[]{
-                        String.valueOf(id)
-                },
-                null,
-                null,
-                null
-        );
-    }
-
-    public Cursor getAllTransactions() {
-
-        return getReadableDatabase()
-                .rawQuery(
-                        "SELECT * FROM transactions " +
-                                "ORDER BY date DESC, id DESC",
-                        null
-                );
-    }
-
-    public Cursor searchTransactions(String query) {
-
-        String q =
-                query == null
-                        ? ""
-                        : query.trim();
-
-        return getReadableDatabase()
-                .rawQuery(
-                        "SELECT * FROM transactions " +
-                                "WHERE symbol LIKE ? " +
-                                "OR portfolio LIKE ? " +
-                                "OR broker LIKE ? " +
-                                "OR description LIKE ? " +
-                                "OR type LIKE ? " +
-                                "ORDER BY date DESC, id DESC",
-                        new String[]{
-                                "%" + q + "%",
-                                "%" + q + "%",
-                                "%" + q + "%",
-                                "%" + q + "%",
-                                "%" + q + "%"
-                        }
-                );
-    }
-
-    public double getCashBalance(String portfolio) {
+        double balance = 0;
 
         Cursor cursor =
-                getReadableDatabase()
-                        .rawQuery(
-                                "SELECT COALESCE(SUM(" +
-                                        "CASE " +
-                                        "WHEN type='DEPOSIT' " +
-                                        "THEN amount " +
-                                        "WHEN type='WITHDRAW' " +
-                                        "THEN -amount " +
-                                        "WHEN type='BUY' " +
-                                        "THEN -(amount + fee) " +
-                                        "WHEN type='SELL' " +
-                                        "THEN (amount - fee) " +
-                                        "ELSE 0 END" +
-                                        "),0) " +
-                                        "FROM transactions " +
-                                        "WHERE portfolio = ?",
-                                new String[]{
-                                        normalizePortfolio(portfolio)
-                                }
-                        );
+                getAllTransactions();
 
         try {
-            if (cursor.moveToFirst()) {
-                return cursor.getDouble(0);
+
+            while (cursor.moveToNext()) {
+
+                String rowPortfolio =
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow(
+                                        "portfolio"
+                                )
+                        );
+
+                if (rowPortfolio == null ||
+                        rowPortfolio.trim().isEmpty()) {
+
+                    rowPortfolio = "اصلی";
+                }
+
+                if (portfolio == null ||
+                        portfolio.trim().isEmpty()) {
+
+                    portfolio = "اصلی";
+                }
+
+                if (!rowPortfolio.equals(
+                        portfolio)) {
+
+                    continue;
+                }
+
+                String type =
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow(
+                                        "type"
+                                )
+                        );
+
+                double amount =
+                        cursor.getDouble(
+                                cursor.getColumnIndexOrThrow(
+                                        "amount"
+                                )
+                        );
+
+                double fee =
+                        cursor.getDouble(
+                                cursor.getColumnIndexOrThrow(
+                                        "fee"
+                                )
+                        );
+
+                if ("DEPOSIT".equals(type)) {
+
+                    balance += amount;
+
+                } else if ("WITHDRAW".equals(type)) {
+
+                    balance -= amount;
+
+                } else if ("BUY".equals(type)) {
+
+                    balance -=
+                            amount + fee;
+
+                } else if ("SELL".equals(type)) {
+
+                    balance +=
+                            amount - fee;
+                }
             }
 
-            return 0;
-
         } finally {
+
             cursor.close();
         }
+
+        return balance;
     }
 
-    private String normalizePortfolio(String portfolio) {
+    /*
+     * پر کردن تاریخ شمسی برای تراکنش‌های قدیمی
+     */
+    private void fillOldPersianDates(
+            SQLiteDatabase db) {
 
-        if (portfolio == null ||
-                portfolio.trim().isEmpty()) {
-            return "اصلی";
+        Cursor cursor =
+                db.query(
+                        TABLE,
+                        new String[]{
+                                "id",
+                                "date",
+                                "date_shamsi"
+                        },
+                        null,
+                        null,
+                        null,
+                        null,
+                        null
+                );
+
+        try {
+
+            while (cursor.moveToNext()) {
+
+                long id =
+                        cursor.getLong(
+                                cursor.getColumnIndexOrThrow(
+                                        "id"
+                                )
+                        );
+
+                long date =
+                        cursor.getLong(
+                                cursor.getColumnIndexOrThrow(
+                                        "date"
+                                )
+                        );
+
+                String current =
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow(
+                                        "date_shamsi"
+                                )
+                        );
+
+                if (current != null &&
+                        !current.trim().isEmpty()) {
+
+                    continue;
+                }
+
+                ContentValues values =
+                        new ContentValues();
+
+                values.put(
+                        "date_shamsi",
+                        toPersianDateTime(date)
+                );
+
+                db.update(
+                        TABLE,
+                        values,
+                        "id=?",
+                        new String[]{
+                                String.valueOf(id)
+                        }
+                );
+            }
+
+        } finally {
+
+            cursor.close();
         }
-
-        return portfolio.trim();
-    }
-
-    public SQLiteDatabase getDatabase() {
-        return getWritableDatabase();
     }
 }
