@@ -313,4 +313,4 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public SQLiteDatabase getDatabase() {
         return getWritableDatabase();
     }
-}
+}ظ
