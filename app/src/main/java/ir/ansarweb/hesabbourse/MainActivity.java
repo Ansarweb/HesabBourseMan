@@ -3,20 +3,25 @@ package ir.ansarweb.hesabbourse;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.database.Cursor;
+import android.graphics.Typeface;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
-import android.graphics.Typeface;
 
+import java.util.Locale;
 import java.util.Map;
 
 public class MainActivity extends Activity {
 
     private DatabaseHelper database;
     private TextView dashboard;
+
+    // کارمزدهای ثابت نسخه 4
+    private static final double BUY_FEE_RATE = 0.0037;   // 0.37%
+    private static final double SELL_FEE_RATE = 0.0088;  // 0.88%
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,40 +48,21 @@ public class MainActivity extends Activity {
         root.addView(title);
 
         TextView subtitle = createText(
-                "سیستم حسابداری معاملات و سبدها",
+                "حسابداری پیشرفته معاملات و سبد سرمایه‌گذاری",
                 16,
                 false
         );
 
         root.addView(subtitle);
 
-        addButton(
-                root,
-                "➕ ثبت خرید",
-                () -> showTradeDialog("BUY")
-        );
+        addButton(root, "➕ ثبت خرید", () -> showTradeDialog("BUY"));
+        addButton(root, "➖ ثبت فروش", () -> showTradeDialog("SELL"));
+        addButton(root, "💰 ثبت واریز", () -> showCashDialog("DEPOSIT"));
+        addButton(root, "💸 ثبت برداشت", () -> showCashDialog("WITHDRAW"));
 
         addButton(
                 root,
-                "➖ ثبت فروش",
-                () -> showTradeDialog("SELL")
-        );
-
-        addButton(
-                root,
-                "💰 ثبت واریز",
-                () -> showCashDialog("DEPOSIT")
-        );
-
-        addButton(
-                root,
-                "💸 ثبت برداشت",
-                () -> showCashDialog("WITHDRAW")
-        );
-
-        addButton(
-                root,
-                "📊 سبدها و سود/زیان",
+                "📊 داشبورد سبدها",
                 this::showPortfolioDialog
         );
 
@@ -92,23 +78,12 @@ public class MainActivity extends Activity {
                 true
         );
 
-        dashboardTitle.setPadding(
-                0,
-                25,
-                0,
-                5
-        );
-
+        dashboardTitle.setPadding(0, 25, 0, 5);
         root.addView(dashboardTitle);
 
-        dashboard = createText(
-                "",
-                16,
-                false
-        );
+        dashboard = createText("", 16, false);
 
         ScrollView scrollView = new ScrollView(this);
-
         scrollView.addView(dashboard);
 
         root.addView(
@@ -237,13 +212,10 @@ public class MainActivity extends Activity {
                         .replace("،", "")
                         .trim();
 
-        return Double.parseDouble(
-                normalized
-        );
+        return Double.parseDouble(normalized);
     }
 
-    private String formatNumber(
-            double value) {
+    private String formatNumber(double value) {
 
         if (value == (long) value) {
 
@@ -253,17 +225,15 @@ public class MainActivity extends Activity {
         }
 
         return String.format(
-                java.util.Locale.US,
+                Locale.US,
                 "%.2f",
                 value
         );
     }
 
-    private void showTradeDialog(
-            String type) {
+    private void showTradeDialog(String type) {
 
-        LinearLayout form =
-                createForm();
+        LinearLayout form = createForm();
 
         EditText portfolio =
                 createField(
@@ -295,18 +265,11 @@ public class MainActivity extends Activity {
                         "0"
                 );
 
-        EditText fee =
-                createField(
-                        "کارمزد",
-                        "0"
-                );
-
         form.addView(portfolio);
         form.addView(broker);
         form.addView(symbol);
         form.addView(quantity);
         form.addView(price);
-        form.addView(fee);
 
         String title =
                 type.equals("BUY")
@@ -336,12 +299,26 @@ public class MainActivity extends Activity {
                                                         .toString()
                                         );
 
-                                double f =
-                                        number(
-                                                fee
-                                                        .getText()
-                                                        .toString()
-                                        );
+                                if (q <= 0 || p <= 0) {
+                                    return;
+                                }
+
+                                /*
+                                 * کارمزد نسخه 4
+                                 *
+                                 * خرید: 0.37%
+                                 * فروش: 0.88%
+                                 */
+
+                                double tradeAmount =
+                                        q * p;
+
+                                double fee =
+                                        type.equals("BUY")
+                                                ? tradeAmount
+                                                * BUY_FEE_RATE
+                                                : tradeAmount
+                                                * SELL_FEE_RATE;
 
                                 database.addTransaction(
                                         type,
@@ -356,8 +333,8 @@ public class MainActivity extends Activity {
                                                 .toString(),
                                         q,
                                         p,
-                                        f,
-                                        q * p
+                                        fee,
+                                        tradeAmount
                                 );
 
                                 refreshDashboard();
@@ -373,11 +350,9 @@ public class MainActivity extends Activity {
                 .show();
     }
 
-    private void showCashDialog(
-            String type) {
+    private void showCashDialog(String type) {
 
-        LinearLayout form =
-                createForm();
+        LinearLayout form = createForm();
 
         EditText portfolio =
                 createField(
@@ -408,6 +383,17 @@ public class MainActivity extends Activity {
 
                             try {
 
+                                double value =
+                                        number(
+                                                amount
+                                                        .getText()
+                                                        .toString()
+                                        );
+
+                                if (value <= 0) {
+                                    return;
+                                }
+
                                 database.addTransaction(
                                         type,
                                         portfolio
@@ -418,11 +404,7 @@ public class MainActivity extends Activity {
                                         0,
                                         0,
                                         0,
-                                        number(
-                                                amount
-                                                        .getText()
-                                                        .toString()
-                                        )
+                                        value
                                 );
 
                                 refreshDashboard();
@@ -470,19 +452,28 @@ public class MainActivity extends Activity {
                 new StringBuilder();
 
         result.append(
-                "وضعیت سبدها\n\n"
+                "📊 وضعیت سبدها\n\n"
         );
 
         boolean hasPosition = false;
 
+        double totalCost = 0;
+        double totalRealized = 0;
+
         for (PortfolioEngine.Position position
                 : positions.values()) {
+
+            totalRealized +=
+                    position.realizedProfit;
 
             if (position.quantity <= 0) {
                 continue;
             }
 
             hasPosition = true;
+
+            totalCost +=
+                    position.cost;
 
             result.append(
                     "سبد: "
@@ -526,13 +517,31 @@ public class MainActivity extends Activity {
                     formatNumber(
                             position.realizedProfit
                     )
-            ).append("\n\n");
+            ).append("\n");
+
+            result.append(
+                    "--------------------\n"
+            );
         }
+
+        result.append("\n");
+
+        result.append(
+                "💵 مجموع بهای تمام‌شده: "
+        ).append(
+                formatNumber(totalCost)
+        ).append("\n");
+
+        result.append(
+                "📈 مجموع سود/زیان تحقق‌یافته: "
+        ).append(
+                formatNumber(totalRealized)
+        ).append("\n");
 
         if (!hasPosition) {
 
             result.append(
-                    "هنوز سهمی در سبدها ثبت نشده است."
+                    "\nهنوز سهمی در سبدها ثبت نشده است."
             );
         }
 
@@ -551,15 +560,24 @@ public class MainActivity extends Activity {
                 new StringBuilder();
 
         result.append(
-                "گزارش سبدها\n\n"
+                "📊 گزارش سبدها\n\n"
         );
 
         boolean found = false;
+
+        double totalCost = 0;
+        double totalRealized = 0;
 
         for (PortfolioEngine.Position position
                 : positions.values()) {
 
             found = true;
+
+            totalCost +=
+                    position.cost;
+
+            totalRealized +=
+                    position.realizedProfit;
 
             result.append(
                     "سبد: "
@@ -610,10 +628,25 @@ public class MainActivity extends Activity {
             );
         }
 
+        result.append("\n");
+
+        result.append(
+                "مجموع بهای تمام‌شده: "
+        ).append(
+                formatNumber(totalCost)
+        ).append("\n");
+
+        result.append(
+                "مجموع سود/زیان تحقق‌یافته: "
+        ).append(
+                formatNumber(totalRealized)
+        );
+
         if (!found) {
 
-            result.append(
-                    "هنوز معامله‌ای ثبت نشده است."
+            result.insert(
+                    0,
+                    "هنوز معامله‌ای ثبت نشده است.\n\n"
             );
         }
 
@@ -631,7 +664,7 @@ public class MainActivity extends Activity {
 
         new AlertDialog.Builder(this)
                 .setTitle(
-                        "سبدها و سود/زیان"
+                        "داشبورد سبدها"
                 )
                 .setView(scroll)
                 .setPositiveButton(
@@ -692,6 +725,13 @@ public class MainActivity extends Activity {
                                 )
                         );
 
+                double fee =
+                        cursor.getDouble(
+                                cursor.getColumnIndexOrThrow(
+                                        "fee"
+                                )
+                        );
+
                 double amount =
                         cursor.getDouble(
                                 cursor.getColumnIndexOrThrow(
@@ -702,13 +742,13 @@ public class MainActivity extends Activity {
                 String action;
 
                 if ("BUY".equals(type)) {
-                    action = "خرید";
+                    action = "🟢 خرید";
                 } else if ("SELL".equals(type)) {
-                    action = "فروش";
+                    action = "🔴 فروش";
                 } else if ("DEPOSIT".equals(type)) {
-                    action = "واریز";
+                    action = "💰 واریز";
                 } else {
-                    action = "برداشت";
+                    action = "💸 برداشت";
                 }
 
                 result.append(
@@ -717,7 +757,9 @@ public class MainActivity extends Activity {
                         ") "
                 ).append(
                         action
-                ).append(
+                );
+
+                result.append(
                         " | سبد: "
                 ).append(
                         portfolio == null
@@ -729,7 +771,7 @@ public class MainActivity extends Activity {
                         && !symbol.trim().isEmpty()) {
 
                     result.append(
-                            " | "
+                            " | نماد: "
                     ).append(
                             symbol
                     );
@@ -740,9 +782,7 @@ public class MainActivity extends Activity {
                     result.append(
                             " | تعداد: "
                     ).append(
-                            formatNumber(
-                                    quantity
-                            )
+                            formatNumber(quantity)
                     );
                 }
 
@@ -751,9 +791,7 @@ public class MainActivity extends Activity {
                     result.append(
                             " | قیمت: "
                     ).append(
-                            formatNumber(
-                                    price
-                            )
+                            formatNumber(price)
                     );
                 }
 
@@ -762,9 +800,16 @@ public class MainActivity extends Activity {
                     result.append(
                             " | مبلغ: "
                     ).append(
-                            formatNumber(
-                                    amount
-                            )
+                            formatNumber(amount)
+                    );
+                }
+
+                if (fee > 0) {
+
+                    result.append(
+                            " | کارمزد: "
+                    ).append(
+                            formatNumber(fee)
                     );
                 }
 
