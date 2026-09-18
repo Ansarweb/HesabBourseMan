@@ -3,6 +3,8 @@ package ir.ansarweb.hesabbourse;
 import android.app.AlertDialog;
 import android.app.Activity;
 import android.os.Bundle;
+import android.content.Intent;
+import android.net.Uri;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.widget.Button;
@@ -12,6 +14,15 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.database.Cursor;
 
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
+import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -22,6 +33,9 @@ public class MainActivity extends Activity {
 
     private static final double BUY_FEE_RATE = 0.0037;
     private static final double SELL_FEE_RATE = 0.0088;
+
+    private static final int REQUEST_EXPORT_BACKUP = 1001;
+    private static final int REQUEST_IMPORT_BACKUP = 1002;
 
     private boolean calculatingFields = false;
 
@@ -81,7 +95,265 @@ public class MainActivity extends Activity {
         cash.setOnClickListener(v -> showCashBalance());
         root.addView(cash);
 
+        // =====================================================
+        // BACKUP
+        // =====================================================
+
+        Button exportBackup = new Button(this);
+        exportBackup.setText("💾 گرفتن بک‌آپ");
+        exportBackup.setOnClickListener(v -> startBackupExport());
+        root.addView(exportBackup);
+
+        Button importBackup = new Button(this);
+        importBackup.setText("📥 بازیابی / وارد کردن بک‌آپ");
+        importBackup.setOnClickListener(v -> startBackupImport());
+        root.addView(importBackup);
+
         setContentView(root);
+    }
+
+    // =========================================================
+    // BACKUP / RESTORE
+    // =========================================================
+
+    /*
+     * شروع خروجی گرفتن از بک‌آپ
+     */
+    private void startBackupExport() {
+
+        String fileName =
+                "hesab_bourse_backup_" +
+                new SimpleDateFormat(
+                        "yyyyMMdd_HHmmss",
+                        Locale.US
+                ).format(new Date()) +
+                ".json";
+
+        Intent intent =
+                new Intent(
+                        Intent.ACTION_CREATE_DOCUMENT
+                );
+
+        intent.addCategory(
+                Intent.CATEGORY_OPENABLE
+        );
+
+        intent.setType(
+                "application/json"
+        );
+
+        intent.putExtra(
+                Intent.EXTRA_TITLE,
+                fileName
+        );
+
+        startActivityForResult(
+                intent,
+                REQUEST_EXPORT_BACKUP
+        );
+    }
+
+    /*
+     * شروع انتخاب فایل بک‌آپ
+     */
+    private void startBackupImport() {
+
+        Intent intent =
+                new Intent(
+                        Intent.ACTION_OPEN_DOCUMENT
+                );
+
+        intent.addCategory(
+                Intent.CATEGORY_OPENABLE
+        );
+
+        intent.setType(
+                "application/json"
+        );
+
+        startActivityForResult(
+                intent,
+                REQUEST_IMPORT_BACKUP
+        );
+    }
+
+    /*
+     * دریافت نتیجه انتخاب/ذخیره فایل
+     */
+    @Override
+    protected void onActivityResult(
+            int requestCode,
+            int resultCode,
+            Intent data) {
+
+        super.onActivityResult(
+                requestCode,
+                resultCode,
+                data
+        );
+
+        if (resultCode != RESULT_OK ||
+                data == null ||
+                data.getData() == null) {
+
+            return;
+        }
+
+        Uri uri =
+                data.getData();
+
+        if (requestCode ==
+                REQUEST_EXPORT_BACKUP) {
+
+            exportBackupToUri(uri);
+
+        } else if (requestCode ==
+                REQUEST_IMPORT_BACKUP) {
+
+            confirmBackupImport(uri);
+        }
+    }
+
+    /*
+     * ذخیره بک‌آپ روی فایل انتخاب‌شده
+     */
+    private void exportBackupToUri(
+            Uri uri) {
+
+        try {
+
+            String json =
+                    db.exportBackupJson();
+
+            OutputStream outputStream =
+                    getContentResolver()
+                            .openOutputStream(uri);
+
+            if (outputStream == null) {
+
+                throw new Exception(
+                        "امکان باز کردن فایل وجود ندارد."
+                );
+            }
+
+            Writer writer =
+                    new OutputStreamWriter(
+                            outputStream,
+                            StandardCharsets.UTF_8
+                    );
+
+            writer.write(json);
+            writer.flush();
+            writer.close();
+
+            toastLong(
+                    "✅ بک‌آپ با موفقیت ذخیره شد."
+            );
+
+        } catch (Exception e) {
+
+            toastLong(
+                    "❌ گرفتن بک‌آپ ناموفق بود.\n" +
+                    safe(e.getMessage())
+            );
+        }
+    }
+
+    /*
+     * تأیید قبل از بازیابی
+     */
+    private void confirmBackupImport(
+            Uri uri) {
+
+        new AlertDialog.Builder(this)
+                .setTitle(
+                        "⚠️ بازیابی بک‌آپ"
+                )
+                .setMessage(
+                        "با بازیابی این فایل، " +
+                        "تراکنش‌های فعلی برنامه حذف و " +
+                        "اطلاعات داخل بک‌آپ جایگزین می‌شوند.\n\n" +
+                        "آیا مطمئن هستید؟"
+                )
+                .setNegativeButton(
+                        "انصراف",
+                        null
+                )
+                .setPositiveButton(
+                        "بله، بازیابی کن",
+                        (dialog, which) ->
+                                importBackupFromUri(uri)
+                )
+                .show();
+    }
+
+    /*
+     * خواندن فایل بک‌آپ و بازیابی
+     */
+    private void importBackupFromUri(
+            Uri uri) {
+
+        try {
+
+            InputStream inputStream =
+                    getContentResolver()
+                            .openInputStream(uri);
+
+            if (inputStream == null) {
+
+                throw new Exception(
+                        "امکان باز کردن فایل وجود ندارد."
+                );
+            }
+
+            BufferedReader reader =
+                    new BufferedReader(
+                            new InputStreamReader(
+                                    inputStream,
+                                    StandardCharsets.UTF_8
+                            )
+                    );
+
+            StringBuilder json =
+                    new StringBuilder();
+
+            String line;
+
+            while ((line = reader.readLine()) != null) {
+
+                json.append(line);
+            }
+
+            reader.close();
+
+            if (json.length() == 0) {
+
+                throw new Exception(
+                        "فایل بک‌آپ خالی است."
+                );
+            }
+
+            db.importBackupJson(
+                    json.toString()
+            );
+
+            toastLong(
+                    "✅ بازیابی بک‌آپ با موفقیت انجام شد."
+            );
+
+            /*
+             * صفحه اصلی دوباره ساخته می‌شود
+             * تا اطلاعات جدید نمایش داده شوند.
+             */
+            buildMainScreen();
+
+        } catch (Exception e) {
+
+            toastLong(
+                    "❌ بازیابی بک‌آپ انجام نشد.\n" +
+                    safe(e.getMessage())
+            );
+        }
     }
 
     private EditText field(String hint) {
@@ -300,9 +572,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    /*
-     * ثبت خرید / فروش جدید
-     */
     private boolean saveTrade(
             String type,
             EditText portfolioField,
@@ -336,26 +605,20 @@ public class MainActivity extends Activity {
         }
 
         if (symbol.isEmpty()) {
-
             toast("نماد را وارد کنید");
             return false;
         }
 
         if (quantity <= 0) {
-
             toast("تعداد معتبر نیست");
             return false;
         }
 
         if (price <= 0) {
-
             toast("قیمت معتبر نیست");
             return false;
         }
 
-        /*
-         * کنترل موجودی برای فروش
-         */
         if ("SELL".equals(type)) {
 
             Map<String, PortfolioEngine.Position> positions =
@@ -400,13 +663,10 @@ public class MainActivity extends Activity {
         double amount =
                 quantity * price;
 
-        double fee;
-
-        if ("BUY".equals(type)) {
-            fee = amount * BUY_FEE_RATE;
-        } else {
-            fee = amount * SELL_FEE_RATE;
-        }
+        double fee =
+                "BUY".equals(type)
+                        ? amount * BUY_FEE_RATE
+                        : amount * SELL_FEE_RATE;
 
         db.addTransactionWithDescription(
                 type,
@@ -420,11 +680,7 @@ public class MainActivity extends Activity {
                 description
         );
 
-        double finalAmount;
-
         if ("BUY".equals(type)) {
-
-            finalAmount = amount + fee;
 
             toastLong(
                     "خرید ثبت شد\n" +
@@ -433,12 +689,10 @@ public class MainActivity extends Activity {
                     "\nکارمزد: " +
                     money(fee) +
                     "\nپرداخت نهایی: " +
-                    money(finalAmount)
+                    money(amount + fee)
             );
 
         } else {
-
-            finalAmount = amount - fee;
 
             toastLong(
                     "فروش ثبت شد\n" +
@@ -447,7 +701,7 @@ public class MainActivity extends Activity {
                     "\nکارمزد: " +
                     money(fee) +
                     "\nدریافتی خالص: " +
-                    money(finalAmount)
+                    money(amount - fee)
             );
         }
 
@@ -788,7 +1042,6 @@ public class MainActivity extends Activity {
         );
 
         transactionsTitle.setTextSize(18);
-
         transactionsTitle.setPadding(
                 0, 10, 0, 10
         );
@@ -927,7 +1180,6 @@ public class MainActivity extends Activity {
             );
 
             item.setTextSize(15);
-
             item.setPadding(
                     0, 12, 0, 12
             );
@@ -977,7 +1229,6 @@ public class MainActivity extends Activity {
             );
 
             totals.setTextSize(16);
-
             totals.setPadding(
                     0, 15, 0, 15
             );
@@ -1014,10 +1265,6 @@ public class MainActivity extends Activity {
         return result;
     }
 
-    /*
-     * محاسبه موجودی بدون درنظر گرفتن
-     * معامله‌ای که قرار است ویرایش شود.
-     */
     private Map<String, PortfolioEngine.Position>
             calculatePositionsExcludingTransaction(
                     long excludedId) {
@@ -1183,9 +1430,6 @@ public class MainActivity extends Activity {
         return positions;
     }
 
-    /*
-     * تاریخچه معاملات
-     */
     private void showHistoryDialog() {
 
         Cursor cursor =
@@ -1271,23 +1515,11 @@ public class MainActivity extends Activity {
                             )
                     );
 
-            String description =
-                    cursor.getString(
-                            cursor.getColumnIndexOrThrow(
-                                    "description"
-                            )
-                    );
-
             Button item =
                     new Button(this);
 
             if ("BUY".equals(type) ||
                     "SELL".equals(type)) {
-
-                double finalAmount =
-                        "BUY".equals(type)
-                                ? amount + fee
-                                : amount - fee;
 
                 item.setText(
                         ("BUY".equals(type)
@@ -1295,8 +1527,7 @@ public class MainActivity extends Activity {
                                 : "🔴 فروش") +
                         " | " +
                         safe(symbol) +
-                        "\n" +
-                        "تعداد: " +
+                        "\nتعداد: " +
                         formatNumber(quantity) +
                         " | قیمت: " +
                         money(price) +
@@ -1305,9 +1536,7 @@ public class MainActivity extends Activity {
                 );
 
                 item.setOnClickListener(
-                        v -> showTransactionActions(
-                                id
-                        )
+                        v -> showTransactionActions(id)
                 );
 
             } else {
@@ -1323,11 +1552,6 @@ public class MainActivity extends Activity {
                         " | " +
                         safe(date)
                 );
-
-                /*
-                 * فعلاً واریز و برداشت از بخش
-                 * ویرایش معامله خارج هستند.
-                 */
             }
 
             item.setPadding(
@@ -1366,9 +1590,6 @@ public class MainActivity extends Activity {
                 .show();
     }
 
-    /*
-     * منوی ویرایش / حذف
-     */
     private void showTransactionActions(long id) {
 
         Cursor cursor =
@@ -1425,24 +1646,17 @@ public class MainActivity extends Activity {
 
                             if (which == 0) {
 
-                                showEditTransactionDialog(
-                                        id
-                                );
+                                showEditTransactionDialog(id);
 
                             } else if (which == 1) {
 
-                                confirmDeleteTransaction(
-                                        id
-                                );
+                                confirmDeleteTransaction(id);
                             }
                         }
                 )
                 .show();
     }
 
-    /*
-     * فرم ویرایش معامله
-     */
     private void showEditTransactionDialog(
             long id) {
 
@@ -1562,8 +1776,7 @@ public class MainActivity extends Activity {
 
         total.setText(
                 formatNumber(
-                        quantityValue *
-                        priceValue
+                        quantityValue * priceValue
                 )
         );
 
@@ -1648,9 +1861,6 @@ public class MainActivity extends Activity {
         dialog.show();
     }
 
-    /*
-     * ذخیره ویرایش معامله
-     */
     private boolean updateTrade(
             long id,
             String type,
@@ -1693,33 +1903,24 @@ public class MainActivity extends Activity {
         }
 
         if (symbol.isEmpty()) {
-
             toast("نماد را وارد کنید");
             return false;
         }
 
         if (quantity <= 0) {
-
             toast("تعداد معتبر نیست");
             return false;
         }
 
         if (price <= 0) {
-
             toast("قیمت معتبر نیست");
             return false;
         }
 
-        /*
-         * برای فروش، موجودی را بدون معامله فعلی
-         * محاسبه می‌کنیم.
-         */
         if ("SELL".equals(type)) {
 
             Map<String, PortfolioEngine.Position> positions =
-                    calculatePositionsExcludingTransaction(
-                            id
-                    );
+                    calculatePositionsExcludingTransaction(id);
 
             String key =
                     portfolio + "|" + symbol;
@@ -1749,8 +1950,7 @@ public class MainActivity extends Activity {
                         "ویرایش انجام نشد.\n" +
                         "موجودی قابل فروش: " +
                         formatNumber(available) +
-                        "\n" +
-                        "مقدار فروش: " +
+                        "\nمقدار فروش: " +
                         formatNumber(quantity)
                 );
 
@@ -1761,13 +1961,10 @@ public class MainActivity extends Activity {
         double amount =
                 quantity * price;
 
-        double fee;
-
-        if ("BUY".equals(type)) {
-            fee = amount * BUY_FEE_RATE;
-        } else {
-            fee = amount * SELL_FEE_RATE;
-        }
+        double fee =
+                "BUY".equals(type)
+                        ? amount * BUY_FEE_RATE
+                        : amount * SELL_FEE_RATE;
 
         int result =
                 db.updateTransaction(
@@ -1789,30 +1986,17 @@ public class MainActivity extends Activity {
             return false;
         }
 
-        double finalAmount =
-                "BUY".equals(type)
-                        ? amount + fee
-                        : amount - fee;
-
         toastLong(
                 "معامله اصلاح شد\n" +
                 "مبلغ معامله: " +
                 money(amount) +
                 "\nکارمزد: " +
-                money(fee) +
-                "\n" +
-                ("BUY".equals(type)
-                        ? "پرداخت نهایی: "
-                        : "دریافتی خالص: ") +
-                money(finalAmount)
+                money(fee)
         );
 
         return true;
     }
 
-    /*
-     * حذف معامله
-     */
     private void confirmDeleteTransaction(
             long id) {
 
@@ -1877,16 +2061,9 @@ public class MainActivity extends Activity {
                                     db.deleteTransaction(id);
 
                             if (result > 0) {
-
-                                toast(
-                                        "معامله حذف شد"
-                                );
-
+                                toast("معامله حذف شد");
                             } else {
-
-                                toast(
-                                        "حذف انجام نشد"
-                                );
+                                toast("حذف انجام نشد");
                             }
                         }
                 )
@@ -1923,7 +2100,6 @@ public class MainActivity extends Activity {
             String query) {
 
         if (query.isEmpty()) {
-
             toast("عبارت جستجو را وارد کنید");
             return;
         }
