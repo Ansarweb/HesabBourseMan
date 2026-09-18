@@ -1,4 +1,3 @@
-
 package ir.ansarweb.hesabbourse;
 
 import android.content.ContentValues;
@@ -18,26 +17,33 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     @Override
     public void onCreate(SQLiteDatabase db) {
+
         db.execSQL(
-            "CREATE TABLE transactions (" +
-            "id INTEGER PRIMARY KEY AUTOINCREMENT," +
-            "type TEXT NOT NULL," +
-            "portfolio TEXT DEFAULT 'اصلی'," +
-            "broker TEXT," +
-            "symbol TEXT," +
-            "quantity REAL DEFAULT 0," +
-            "price REAL DEFAULT 0," +
-            "fee REAL DEFAULT 0," +
-            "amount REAL DEFAULT 0," +
-            "date INTEGER NOT NULL)"
+                "CREATE TABLE transactions (" +
+                        "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                        "type TEXT NOT NULL," +
+                        "portfolio TEXT DEFAULT 'اصلی'," +
+                        "broker TEXT," +
+                        "symbol TEXT," +
+                        "quantity REAL DEFAULT 0," +
+                        "price REAL DEFAULT 0," +
+                        "fee REAL DEFAULT 0," +
+                        "amount REAL DEFAULT 0," +
+                        "date INTEGER NOT NULL)"
         );
     }
 
     @Override
-    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+    public void onUpgrade(
+            SQLiteDatabase db,
+            int oldVersion,
+            int newVersion) {
+
         if (oldVersion < 2) {
+
             db.execSQL(
-                "ALTER TABLE transactions ADD COLUMN portfolio TEXT DEFAULT 'اصلی'"
+                    "ALTER TABLE transactions " +
+                            "ADD COLUMN portfolio TEXT DEFAULT 'اصلی'"
             );
         }
     }
@@ -52,31 +58,57 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             double fee,
             double amount) {
 
-        ContentValues values = new ContentValues();
+        ContentValues values =
+                new ContentValues();
 
         values.put("type", type);
+
         values.put(
                 "portfolio",
-                portfolio == null || portfolio.trim().isEmpty()
+                portfolio == null
+                        || portfolio.trim().isEmpty()
                         ? "اصلی"
                         : portfolio.trim()
         );
-        values.put("broker", broker);
-        values.put("symbol", symbol);
+
+        values.put(
+                "broker",
+                broker == null
+                        ? ""
+                        : broker.trim()
+        );
+
+        values.put(
+                "symbol",
+                symbol == null
+                        ? ""
+                        : symbol.trim()
+        );
+
         values.put("quantity", quantity);
         values.put("price", price);
         values.put("fee", fee);
         values.put("amount", amount);
-        values.put("date", System.currentTimeMillis());
+        values.put(
+                "date",
+                System.currentTimeMillis()
+        );
 
         return getWritableDatabase()
-                .insert("transactions", null, values);
+                .insert(
+                        "transactions",
+                        null,
+                        values
+                );
     }
 
     public Cursor getAllTransactions() {
-        return getReadableDatabase().rawQuery(
-                "SELECT * FROM transactions ORDER BY date DESC",
-                null
-        );
+
+        return getReadableDatabase()
+                .rawQuery(
+                        "SELECT * FROM transactions " +
+                                "ORDER BY date DESC",
+                        null
+                );
     }
 }
