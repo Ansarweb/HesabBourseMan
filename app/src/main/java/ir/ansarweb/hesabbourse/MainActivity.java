@@ -1,86 +1,418 @@
 package ir.ansarweb.hesabbourse;
 
-import java.util.Locale;
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.Intent;
+import android.os.Bundle;
+import android.speech.RecognizerIntent;
+import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import android.widget.Toast;
 
-public class VoiceTradeParser {
+import java.util.ArrayList;
 
-    public static class TradeData {
+public class MainActivity extends Activity {
 
-        public String broker = "";
-        public String symbol = "";
-        public double amount = 0;
-        public double price = 0;
-        public double quantity = 0;
-        public boolean isBuy = true;
+    private DatabaseHelper database;
+    private TextView transactions;
+
+    private static final int VOICE_REQUEST = 9001;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        setContentView(R.layout.activity_main);
+
+        database = new DatabaseHelper(this);
+
+        transactions = findViewById(R.id.transactions);
+
+        findViewById(R.id.addTrade)
+                .setOnClickListener(v -> showTradeDialog());
+
+        findViewById(R.id.addDeposit)
+                .setOnClickListener(v -> showCashDialog("DEPOSIT"));
+
+        findViewById(R.id.addWithdraw)
+                .setOnClickListener(v -> showCashDialog("WITHDRAW"));
+
+        findViewById(R.id.voiceButton)
+                .setOnClickListener(v -> startVoiceInput());
+
+        refreshTransactions();
     }
 
-    public static TradeData parse(String text) {
+    private void showTradeDialog() {
 
-        TradeData result = new TradeData();
+        LinearLayout layout = createForm();
 
-        if (text == null) {
-            return result;
-        }
+        EditText broker = field("کارگزاری");
+        EditText symbol = field("نماد");
+        EditText quantity = field("تعداد");
+        EditText price = field("قیمت هر سهم");
+        EditText fee = field("کارمزد");
 
-        String t = normalize(text);
+        layout.addView(broker);
+        layout.addView(symbol);
+        layout.addView(quantity);
+        layout.addView(price);
+        layout.addView(fee);
 
-        String lower = t.toLowerCase(Locale.ROOT);
-
-        result.isBuy = !lower.contains("فروش");
-
-        String[] words = t.split("\\s+");
-
-        for (int i = 0; i < words.length; i++) {
-
-            String word = words[i];
-
-            if (word.equals("خرید")) {
-                result.isBuy = true;
-            }
-
-            if (word.equals("فروش")) {
-                result.isBuy = false;
-            }
-
-            if (word.equals("مفید")) {
-                result.broker = "مفید";
-            }
-
-            if (word.equals("معین")) {
-                result.broker = "معین";
-            }
-
-            if (word.equals("ومعادن")) {
-                result.symbol = "ومعادن";
-            }
-
-            if (word.equals("فولاد")) {
-                result.symbol = "فولاد";
-            }
-
-            if (word.equals("دابور")) {
-                result.symbol = "دابور";
-            }
-
-            if (word.equals("دپارس")) {
-                result.symbol = "دپارس";
-            }
-        }
-
-        result.amount = extractAmount(t);
-        result.price = extractPrice(t);
-
-        if (result.price > 0 && result.amount > 0) {
-            result.quantity =
-                    Math.floor(result.amount / result.price);
-        }
-
-        return result;
+        new AlertDialog.Builder(this)
+                .setTitle("ثبت معامله")
+                .setView(layout)
+                .setPositiveButton(
+                        "خرید",
+                        (dialog, which) ->
+                                saveTrade(
+                                        "BUY",
+                                        broker,
+                                        symbol,
+                                        quantity,
+                                        price,
+                                        fee
+                                )
+                )
+                .setNeutralButton(
+                        "فروش",
+                        (dialog, which) ->
+                                saveTrade(
+                                        "SELL",
+                                        broker,
+                                        symbol,
+                                        quantity,
+                                        price,
+                                        fee
+                                )
+                )
+                .setNegativeButton(
+                        "لغو",
+                        null
+                )
+                .show();
     }
 
-    private static String normalize(String text) {
+    private void saveTrade(
+            String type,
+            EditText broker,
+            EditText symbol,
+            EditText quantity,
+            EditText price,
+            EditText fee) {
 
-        return text
+        try {
+
+            double q = Double.parseDouble(
+                    normalizeNumber(
+                            quantity.getText().toString().trim()
+                    )
+            );
+
+            double p = Double.parseDouble(
+                    normalizeNumber(
+                            price.getText().toString().trim()
+                    )
+            );
+
+            double f = 0;
+
+            String feeText = fee.getText().toString().trim();
+
+            if (!feeText.isEmpty()) {
+                f = Double.parseDouble(
+                        normalizeNumber(feeText)
+                );
+            }
+
+            String brokerText =
+                    broker.getText().toString().trim();
+
+            String symbolText =
+                    symbol.getText().toString().trim();
+
+            if (q <= 0 ||
+                    p <= 0 ||
+                    symbolText.isEmpty()) {
+
+                throw new Exception();
+            }
+
+            database.addTransaction(
+                    type,
+                    brokerText,
+                    symbolText,
+                    q,
+                    p,
+                    f,
+                    (q * p) + f
+            );
+
+            refreshTransactions();
+
+            Toast.makeText(
+                    this,
+                    "معامله با موفقیت ثبت شد",
+                    Toast.LENGTH_SHORT
+            ).show();
+
+        } catch (Exception e) {
+
+            Toast.makeText(
+                    this,
+                    "اطلاعات معامله صحیح نیست",
+                    Toast.LENGTH_SHORT
+            ).show();
+        }
+    }
+
+    private void showCashDialog(String type) {
+
+        EditText amount = field("مبلغ تومان");
+
+        new AlertDialog.Builder(this)
+                .setTitle(
+                        type.equals("DEPOSIT")
+                                ? "واریز به کارگزاری"
+                                : "برداشت"
+                )
+                .setView(amount)
+                .setPositiveButton(
+                        "ثبت",
+                        (dialog, which) -> {
+
+                            try {
+
+                                double value =
+                                        Double.parseDouble(
+                                                normalizeNumber(
+                                                        amount.getText()
+                                                                .toString()
+                                                                .trim()
+                                                )
+                                        );
+
+                                if (value <= 0) {
+                                    throw new Exception();
+                                }
+
+                                database.addTransaction(
+                                        type,
+                                        "",
+                                        "",
+                                        0,
+                                        0,
+                                        0,
+                                        value
+                                );
+
+                                refreshTransactions();
+
+                                Toast.makeText(
+                                        this,
+                                        "ثبت شد",
+                                        Toast.LENGTH_SHORT
+                                ).show();
+
+                            } catch (Exception e) {
+
+                                Toast.makeText(
+                                        this,
+                                        "مبلغ صحیح نیست",
+                                        Toast.LENGTH_SHORT
+                                ).show();
+                            }
+                        }
+                )
+                .setNegativeButton(
+                        "لغو",
+                        null
+                )
+                .show();
+    }
+
+    private LinearLayout createForm() {
+
+        LinearLayout layout =
+                new LinearLayout(this);
+
+        layout.setOrientation(
+                LinearLayout.VERTICAL
+        );
+
+        layout.setPadding(
+                24,
+                8,
+                24,
+                8
+        );
+
+        return layout;
+    }
+
+    private EditText field(String hint) {
+
+        EditText editText =
+                new EditText(this);
+
+        editText.setHint(hint);
+        editText.setSingleLine(true);
+
+        return editText;
+    }
+
+    private void startVoiceInput() {
+
+        Intent intent =
+                new Intent(
+                        RecognizerIntent.ACTION_RECOGNIZE_SPEECH
+                );
+
+        intent.putExtra(
+                RecognizerIntent.EXTRA_LANGUAGE,
+                "fa-IR"
+        );
+
+        intent.putExtra(
+                RecognizerIntent.EXTRA_PROMPT,
+                "مثلاً: مفید خرید ومعادن ۱۲۰ میلیون تومان هر سهم ۲۹۰ تومان"
+        );
+
+        try {
+
+            startActivityForResult(
+                    intent,
+                    VOICE_REQUEST
+            );
+
+        } catch (Exception e) {
+
+            Toast.makeText(
+                    this,
+                    "تشخیص گفتار در دسترس نیست",
+                    Toast.LENGTH_LONG
+            ).show();
+        }
+    }
+
+    @Override
+    protected void onActivityResult(
+            int requestCode,
+            int resultCode,
+            Intent data) {
+
+        super.onActivityResult(
+                requestCode,
+                resultCode,
+                data
+        );
+
+        if (requestCode == VOICE_REQUEST &&
+                resultCode == RESULT_OK &&
+                data != null) {
+
+            ArrayList<String> results =
+                    data.getStringArrayListExtra(
+                            RecognizerIntent.EXTRA_RESULTS
+                    );
+
+            if (results != null &&
+                    !results.isEmpty()) {
+
+                String spokenText = results.get(0);
+
+                processVoiceTrade(spokenText);
+            }
+        }
+    }
+
+    private void processVoiceTrade(String spokenText) {
+
+        VoiceTradeParser.TradeData data =
+                VoiceTradeParser.parse(spokenText);
+
+        if (data.symbol.isEmpty()) {
+
+            Toast.makeText(
+                    this,
+                    "نماد سهم تشخیص داده نشد",
+                    Toast.LENGTH_LONG
+            ).show();
+
+            return;
+        }
+
+        if (data.price <= 0) {
+
+            Toast.makeText(
+                    this,
+                    "قیمت هر سهم تشخیص داده نشد",
+                    Toast.LENGTH_LONG
+            ).show();
+
+            return;
+        }
+
+        if (data.amount <= 0) {
+
+            Toast.makeText(
+                    this,
+                    "مبلغ معامله تشخیص داده نشد",
+                    Toast.LENGTH_LONG
+            ).show();
+
+            return;
+        }
+
+        if (data.quantity <= 0) {
+
+            Toast.makeText(
+                    this,
+                    "تعداد سهم قابل محاسبه نیست",
+                    Toast.LENGTH_LONG
+            ).show();
+
+            return;
+        }
+
+        String type =
+                data.isBuy ? "BUY" : "SELL";
+
+        database.addTransaction(
+                type,
+                data.broker,
+                data.symbol,
+                data.quantity,
+                data.price,
+                0,
+                data.amount
+        );
+
+        refreshTransactions();
+
+        String action =
+                data.isBuy ? "خرید" : "فروش";
+
+        Toast.makeText(
+                this,
+                action + " " +
+                        data.symbol +
+                        " ثبت شد\nتعداد: " +
+                        formatNumber(data.quantity) +
+                        "\nقیمت: " +
+                        formatNumber(data.price),
+                Toast.LENGTH_LONG
+        ).show();
+    }
+
+    private String normalizeNumber(String value) {
+
+        if (value == null) {
+            return "";
+        }
+
+        return value
                 .replace('۰', '0')
                 .replace('۱', '1')
                 .replace('۲', '2')
@@ -91,66 +423,107 @@ public class VoiceTradeParser {
                 .replace('۷', '7')
                 .replace('۸', '8')
                 .replace('۹', '9')
-                .replace("،", " ")
-                .replace(",", " ")
-                .replace("٫", ".")
+                .replace("٬", "")
+                .replace(",", "")
+                .replace("،", "")
                 .trim();
     }
 
-    private static double extractAmount(String text) {
+    private String formatNumber(double value) {
 
-        String[] words = text.split("\\s+");
-
-        for (int i = 0; i < words.length; i++) {
-
-            try {
-
-                double number =
-                        Double.parseDouble(words[i]);
-
-                if (i + 1 < words.length) {
-
-                    String next = words[i + 1];
-
-                    if (next.contains("میلیون")) {
-                        return number * 1000000;
-                    }
-
-                    if (next.contains("هزار")) {
-                        return number * 1000;
-                    }
-                }
-
-            } catch (Exception ignored) {
-            }
+        if (value == (long) value) {
+            return String.valueOf((long) value);
         }
 
-        return 0;
+        return String.valueOf(value);
     }
 
-    private static double extractPrice(String text) {
+    private void refreshTransactions() {
 
-        String[] words = text.split("\\s+");
+        StringBuilder text =
+                new StringBuilder();
 
-        for (int i = 0; i < words.length; i++) {
+        android.database.Cursor cursor =
+                database.getAllTransactions();
 
-            if (words[i].contains("قیمت") ||
-                words[i].contains("سهم")) {
+        int count = 0;
 
-                for (int j = i + 1;
-                     j < Math.min(i + 5, words.length);
-                     j++) {
+        while (cursor.moveToNext() &&
+                count < 15) {
 
-                    try {
+            String type =
+                    cursor.getString(
+                            cursor.getColumnIndexOrThrow("type")
+                    );
 
-                        return Double.parseDouble(words[j]);
+            String symbol =
+                    cursor.getString(
+                            cursor.getColumnIndexOrThrow("symbol")
+                    );
 
-                    } catch (Exception ignored) {
-                    }
-                }
+            double quantity =
+                    cursor.getDouble(
+                            cursor.getColumnIndexOrThrow("quantity")
+                    );
+
+            double price =
+                    cursor.getDouble(
+                            cursor.getColumnIndexOrThrow("price")
+                    );
+
+            double amount =
+                    cursor.getDouble(
+                            cursor.getColumnIndexOrThrow("amount")
+                    );
+
+            String title;
+
+            if ("BUY".equals(type)) {
+                title = "خرید";
+            } else if ("SELL".equals(type)) {
+                title = "فروش";
+            } else if ("DEPOSIT".equals(type)) {
+                title = "واریز";
+            } else {
+                title = "برداشت";
             }
+
+            text.append(title);
+
+            if (symbol != null &&
+                    !symbol.isEmpty()) {
+
+                text.append(" | ")
+                        .append(symbol)
+                        .append(" | تعداد ")
+                        .append(formatNumber(quantity))
+                        .append(" | قیمت ")
+                        .append(formatNumber(price));
+            } else {
+
+                text.append(" | مبلغ ")
+                        .append(formatNumber(amount))
+                        .append(" تومان");
+            }
+
+            text.append("\n");
+
+            count++;
         }
 
-        return 0;
+        cursor.close();
+
+        if (count == 0) {
+
+            transactions.setText(
+                    "هنوز معامله‌ای ثبت نشده است."
+            );
+
+        } else {
+
+            transactions.setText(
+                    text.toString()
+            );
+        }
     }
 }
