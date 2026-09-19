@@ -1,14 +1,15 @@
 package ir.ansarweb.hesabbourse;
 
 import android.app.Activity;
-import android.app.KeyguardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.hardware.fingerprint.FingerprintManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.security.keystore.KeyGenParameterSpec;
 import android.security.keystore.KeyProperties;
+import android.text.InputFilter;
 import android.text.InputType;
 import android.view.Gravity;
 import android.widget.Button;
@@ -26,19 +27,14 @@ import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 
-import android.hardware.fingerprint.FingerprintManager;
-
 public class LockActivity extends Activity {
 
     private static final String PREFS = "app_lock";
-    private static final String KEY_PIN_HASH = "pin_hash";
-    private static final String KEY_PIN_SALT = "pin_salt";
-    private static final String KEY_FINGERPRINT = "fingerprint_enabled";
-    private static final String KEYSTORE_NAME = "AndroidKeyStore";
+    private static final String PIN_HASH = "pin_hash";
+    private static final String PIN_SALT = "pin_salt";
     private static final String KEY_NAME = "HesabBourseFingerprintKey";
 
     private SharedPreferences prefs;
-    private EditText pinInput;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,186 +49,230 @@ public class LockActivity extends Activity {
         }
     }
 
-    // ---------------------------------------------------------
-    // ساخت PIN
-    // ---------------------------------------------------------
+    private boolean hasPin() {
+        return prefs.contains(PIN_HASH) && prefs.contains(PIN_SALT);
+    }
 
     private void showCreatePinScreen() {
 
-        LinearLayout root = createRoot();
+        LinearLayout layout = createBaseLayout();
 
         TextView title = new TextView(this);
-        title.setText("🔐 قفل برنامه");
-        title.setTextSize(26);
+        title.setText("🔐 حساب بورس");
+        title.setTextSize(28);
         title.setGravity(Gravity.CENTER);
-        title.setPadding(0, 30, 0, 20);
+        title.setPadding(0, 20, 0, 20);
+        layout.addView(title);
 
         TextView info = new TextView(this);
-        info.setText(
-                "برای ورود به حساب بورس یک رمز ۶ رقمی تعیین کنید."
-        );
+        info.setText("برای ورود یک رمز ۶ رقمی تعیین کنید");
         info.setTextSize(17);
         info.setGravity(Gravity.CENTER);
-        info.setPadding(20, 10, 20, 30);
+        info.setPadding(0, 0, 0, 30);
+        layout.addView(info);
 
-        EditText pin = createPinField();
-        pin.setHint("رمز ۶ رقمی");
+        EditText pin1 = createPinField();
+        pin1.setHint("رمز ۶ رقمی");
+        layout.addView(pin1);
+
+        EditText pin2 = createPinField();
+        pin2.setHint("تکرار رمز");
+        layout.addView(pin2);
 
         Button save = new Button(this);
         save.setText("ذخیره رمز و ورود");
-
-        root.addView(title);
-        root.addView(info);
-        root.addView(pin);
-        root.addView(save);
-
-        setContentView(root);
+        layout.addView(save);
 
         save.setOnClickListener(v -> {
 
-            String value = pin.getText().toString();
+            String p1 = pin1.getText().toString();
+            String p2 = pin2.getText().toString();
 
-            if (value.length() != 6) {
-                toast("رمز باید دقیقاً ۶ رقم باشد.");
+            if (p1.length() != 6) {
+                toast("رمز باید دقیقاً ۶ رقم باشد");
                 return;
             }
 
-            savePin(value);
+            if (!p1.equals(p2)) {
+                toast("دو رمز یکسان نیستند");
+                return;
+            }
 
-            showLockScreen();
+            savePin(p1);
+
+            toast("رمز با موفقیت ذخیره شد");
+
+            openMainActivity();
         });
-    }
 
-    // ---------------------------------------------------------
-    // صفحه ورود
-    // ---------------------------------------------------------
+        setContentView(layout);
+    }
 
     private void showLockScreen() {
 
-        LinearLayout root = createRoot();
+        LinearLayout layout = createBaseLayout();
 
         TextView title = new TextView(this);
-        title.setText("🔐 ورود به حساب بورس");
-        title.setTextSize(25);
+        title.setText("🔒 حساب بورس");
+        title.setTextSize(28);
         title.setGravity(Gravity.CENTER);
-        title.setPadding(0, 30, 0, 25);
+        title.setPadding(0, 20, 0, 20);
+        layout.addView(title);
 
         TextView info = new TextView(this);
-        info.setText("رمز ۶ رقمی خود را وارد کنید");
+        info.setText("برای ورود رمز ۶ رقمی را وارد کنید");
         info.setTextSize(17);
         info.setGravity(Gravity.CENTER);
-        info.setPadding(0, 10, 0, 20);
+        info.setPadding(0, 0, 0, 30);
+        layout.addView(info);
 
-        pinInput = createPinField();
-        pinInput.setHint("رمز ورود");
+        EditText pin = createPinField();
+        pin.setHint("رمز ورود");
+        layout.addView(pin);
 
         Button login = new Button(this);
         login.setText("ورود");
-
-        Button fingerprint = new Button(this);
-        fingerprint.setText("👆 ورود با اثر انگشت");
-
-        root.addView(title);
-        root.addView(info);
-        root.addView(pinInput);
-        root.addView(login);
-
-        if (isFingerprintAvailable()) {
-            root.addView(fingerprint);
-
-            fingerprint.setOnClickListener(v -> authenticateFingerprint());
-        }
-
-        setContentView(root);
+        layout.addView(login);
 
         login.setOnClickListener(v -> {
 
-            String entered = pinInput.getText().toString();
+            String entered = pin.getText().toString();
+
+            if (entered.length() != 6) {
+                toast("رمز باید ۶ رقم باشد");
+                return;
+            }
 
             if (verifyPin(entered)) {
                 openMainActivity();
             } else {
-                toast("رمز اشتباه است.");
-                pinInput.setText("");
+                pin.setText("");
+                toast("رمز اشتباه است");
             }
         });
+
+        if (isFingerprintAvailable()) {
+
+            Button fingerprint = new Button(this);
+            fingerprint.setText("👆 ورود با اثر انگشت");
+            layout.addView(fingerprint);
+
+            fingerprint.setOnClickListener(v -> startFingerprintAuthentication());
+        }
+
+        setContentView(layout);
     }
 
-    // ---------------------------------------------------------
-    // PIN
-    // ---------------------------------------------------------
+    private LinearLayout createBaseLayout() {
 
-    private boolean hasPin() {
-        return prefs.contains(KEY_PIN_HASH)
-                && prefs.contains(KEY_PIN_SALT);
+        LinearLayout layout = new LinearLayout(this);
+
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setGravity(Gravity.CENTER_HORIZONTAL);
+        layout.setPadding(50, 60, 50, 50);
+
+        return layout;
+    }
+
+    private EditText createPinField() {
+
+        EditText field = new EditText(this);
+
+        field.setInputType(
+                InputType.TYPE_CLASS_NUMBER |
+                InputType.TYPE_NUMBER_VARIATION_PASSWORD
+        );
+
+        field.setGravity(Gravity.CENTER);
+        field.setTextSize(22);
+
+        field.setFilters(
+                new InputFilter[]{
+                        new InputFilter.LengthFilter(6)
+                }
+        );
+
+        LinearLayout.LayoutParams params =
+                new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                );
+
+        params.setMargins(0, 10, 0, 10);
+
+        field.setLayoutParams(params);
+
+        return field;
     }
 
     private void savePin(String pin) {
 
-        byte[] salt = new byte[16];
-        new SecureRandom().nextBytes(salt);
+        try {
 
-        String saltHex = bytesToHex(salt);
-        String hash = hashPin(pin, saltHex);
+            SecureRandom random = new SecureRandom();
 
-        prefs.edit()
-                .putString(KEY_PIN_HASH, hash)
-                .putString(KEY_PIN_SALT, saltHex)
-                .putBoolean(KEY_FINGERPRINT, true)
-                .apply();
+            byte[] salt = new byte[16];
+            random.nextBytes(salt);
+
+            String saltHex = bytesToHex(salt);
+
+            String hash = hashPin(saltHex, pin);
+
+            prefs.edit()
+                    .putString(PIN_SALT, saltHex)
+                    .putString(PIN_HASH, hash)
+                    .apply();
+
+        } catch (Exception e) {
+            toast("خطا در ذخیره رمز");
+        }
     }
 
     private boolean verifyPin(String pin) {
 
-        if (pin == null || pin.length() != 6) {
-            return false;
-        }
-
-        String salt = prefs.getString(KEY_PIN_SALT, "");
-        String savedHash = prefs.getString(KEY_PIN_HASH, "");
-
-        if (salt.isEmpty() || savedHash.isEmpty()) {
-            return false;
-        }
-
-        String enteredHash = hashPin(pin, salt);
-
-        return savedHash.equals(enteredHash);
-    }
-
-    private String hashPin(String pin, String saltHex) {
-
         try {
 
-            MessageDigest digest =
-                    MessageDigest.getInstance("SHA-256");
+            String salt = prefs.getString(PIN_SALT, null);
+            String savedHash = prefs.getString(PIN_HASH, null);
 
-            String input = saltHex + ":" + pin;
+            if (salt == null || savedHash == null) {
+                return false;
+            }
 
-            byte[] result =
-                    digest.digest(input.getBytes(StandardCharsets.UTF_8));
+            String enteredHash = hashPin(salt, pin);
 
-            return bytesToHex(result);
+            return MessageDigest.isEqual(
+                    enteredHash.getBytes(StandardCharsets.UTF_8),
+                    savedHash.getBytes(StandardCharsets.UTF_8)
+            );
 
         } catch (Exception e) {
-            return "";
+            return false;
         }
+    }
+
+    private String hashPin(String salt, String pin) throws Exception {
+
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+
+        String value = salt + ":" + pin;
+
+        byte[] result =
+                digest.digest(value.getBytes(StandardCharsets.UTF_8));
+
+        return bytesToHex(result);
     }
 
     private String bytesToHex(byte[] bytes) {
 
-        StringBuilder sb = new StringBuilder();
+        StringBuilder builder = new StringBuilder();
 
         for (byte b : bytes) {
-            sb.append(String.format("%02x", b));
+            builder.append(String.format("%02x", b));
         }
 
-        return sb.toString();
+        return builder.toString();
     }
-
-    // ---------------------------------------------------------
-    // اثر انگشت
-    // ---------------------------------------------------------
 
     private boolean isFingerprintAvailable() {
 
@@ -244,47 +284,142 @@ public class LockActivity extends Activity {
 
             FingerprintManager manager =
                     (FingerprintManager)
-                            getSystemService(FINGERPRINT_SERVICE);
+                            getSystemService(Context.FINGERPRINT_SERVICE);
 
             if (manager == null) {
                 return false;
             }
 
-            if (!manager.isHardwareDetected()) {
-                return false;
-            }
+            return manager.isHardwareDetected()
+                    && manager.hasEnrolledFingerprints();
 
-            if (!manager.hasEnrolledFingerprints()) {
-                return false;
-            }
-
-            return true;
-
-        } catch (SecurityException e) {
+        } catch (Exception e) {
             return false;
         }
     }
 
-    private void authenticateFingerprint() {
+    private void startFingerprintAuthentication() {
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-            toast("اثر انگشت در این نسخه اندروید پشتیبانی نمی‌شود.");
+            toast("اثر انگشت در این نسخه اندروید پشتیبانی نمی‌شود");
             return;
         }
 
         try {
 
-            KeyStore keyStore =
-                    KeyStore.getInstance(KEYSTORE_NAME);
+            FingerprintManager manager =
+                    (FingerprintManager)
+                            getSystemService(Context.FINGERPRINT_SERVICE);
 
+            if (manager == null) {
+                toast("سخت‌افزار اثر انگشت پیدا نشد");
+                return;
+            }
+
+            if (!manager.isHardwareDetected()) {
+                toast("این گوشی حسگر اثر انگشت ندارد");
+                return;
+            }
+
+            if (!manager.hasEnrolledFingerprints()) {
+                toast("ابتدا اثر انگشت را در تنظیمات گوشی ثبت کنید");
+                return;
+            }
+
+            Cipher cipher = createFingerprintCipher();
+
+            if (cipher == null) {
+                toast("امکان فعال‌سازی اثر انگشت وجود ندارد");
+                return;
+            }
+
+            FingerprintManager.CryptoObject cryptoObject =
+                    new FingerprintManager.CryptoObject(cipher);
+
+            FingerprintManager.AuthenticationCallback callback =
+                    new FingerprintManager.AuthenticationCallback() {
+
+                        @Override
+                        public void onAuthenticationSucceeded(
+                                FingerprintManager.AuthenticationResult result) {
+
+                            runOnUiThread(() -> {
+                                toast("اثر انگشت تأیید شد");
+                                openMainActivity();
+                            });
+                        }
+
+                        @Override
+                        public void onAuthenticationFailed() {
+
+                            runOnUiThread(() ->
+                                    toast("اثر انگشت شناسایی نشد")
+                            );
+                        }
+
+                        @Override
+                        public void onAuthenticationError(
+                                int errorCode,
+                                CharSequence errString) {
+
+                            runOnUiThread(() ->
+                                    toast(errString.toString())
+                            );
+                        }
+                    };
+
+            manager.authenticate(
+                    cryptoObject,
+                    null,
+                    0,
+                    callback,
+                    null
+            );
+
+        } catch (Exception e) {
+
+            toast("خطا در فعال‌سازی اثر انگشت");
+        }
+    }
+
+    private Cipher createFingerprintCipher() {
+
+        try {
+
+            KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
             keyStore.load(null);
 
             if (!keyStore.containsAlias(KEY_NAME)) {
-                createFingerprintKey();
+
+                KeyGenerator keyGenerator =
+                        KeyGenerator.getInstance(
+                                KeyProperties.KEY_ALGORITHM_AES,
+                                "AndroidKeyStore"
+                        );
+
+                KeyGenParameterSpec spec =
+                        new KeyGenParameterSpec.Builder(
+                                KEY_NAME,
+                                KeyProperties.PURPOSE_ENCRYPT |
+                                KeyProperties.PURPOSE_DECRYPT
+                        )
+                                .setBlockModes(
+                                        KeyProperties.BLOCK_MODE_CBC
+                                )
+                                .setEncryptionPaddings(
+                                        KeyProperties.ENCRYPTION_PADDING_PKCS7
+                                )
+                                .setUserAuthenticationRequired(true)
+                                .build();
+
+                keyGenerator.init(spec);
+                keyGenerator.generateKey();
             }
 
             SecretKey key =
-                    (SecretKey) keyStore.getKey(KEY_NAME, null);
+                    ((KeyStore.SecretKeyEntry)
+                            keyStore.getEntry(KEY_NAME, null))
+                            .getSecretKey();
 
             Cipher cipher =
                     Cipher.getInstance(
@@ -300,83 +435,13 @@ public class LockActivity extends Activity {
                     key
             );
 
-            FingerprintManager manager =
-                    (FingerprintManager)
-                            getSystemService(FINGERPRINT_SERVICE);
-
-            FingerprintManager.CryptoObject cryptoObject =
-                    new FingerprintManager.CryptoObject(cipher);
-
-            manager.authenticate(
-                    cryptoObject,
-                    null,
-                    0,
-                    new FingerprintManager.AuthenticationCallback() {
-
-                        @Override
-                        public void onAuthenticationSucceeded(
-                                FingerprintManager.AuthenticationResult result) {
-
-                            runOnUiThread(() -> {
-                                openMainActivity();
-                            });
-                        }
-
-                        @Override
-                        public void onAuthenticationFailed() {
-
-                            runOnUiThread(() ->
-                                    toast("اثر انگشت شناسایی نشد."));
-                        }
-
-                        @Override
-                        public void onAuthenticationError(
-                                int errorCode,
-                                CharSequence errString) {
-
-                            runOnUiThread(() ->
-                                    toast(errString.toString()));
-                        }
-                    },
-                    null
-            );
+            return cipher;
 
         } catch (Exception e) {
 
-            toast("ورود با اثر انگشت در این دستگاه فعال نشد.");
+            return null;
         }
     }
-
-    private void createFingerprintKey() throws Exception {
-
-        KeyGenerator keyGenerator =
-                KeyGenerator.getInstance(
-                        KeyProperties.KEY_ALGORITHM_AES,
-                        KEYSTORE_NAME
-                );
-
-        KeyGenParameterSpec spec =
-                new KeyGenParameterSpec.Builder(
-                        KEY_NAME,
-                        KeyProperties.PURPOSE_ENCRYPT
-                                | KeyProperties.PURPOSE_DECRYPT
-                )
-                        .setBlockModes(
-                                KeyProperties.BLOCK_MODE_CBC
-                        )
-                        .setEncryptionPaddings(
-                                KeyProperties.ENCRYPTION_PADDING_PKCS7
-                        )
-                        .setUserAuthenticationRequired(true)
-                        .build();
-
-        keyGenerator.init(spec);
-        keyGenerator.generateKey();
-    }
-
-    // ---------------------------------------------------------
-    // ورود به برنامه
-    // ---------------------------------------------------------
 
     private void openMainActivity() {
 
@@ -387,77 +452,8 @@ public class LockActivity extends Activity {
                 );
 
         startActivity(intent);
+
         finish();
-    }
-
-    // ---------------------------------------------------------
-    // UI
-    // ---------------------------------------------------------
-
-    private LinearLayout createRoot() {
-
-        LinearLayout root =
-                new LinearLayout(this);
-
-        root.setOrientation(
-                LinearLayout.VERTICAL
-        );
-
-        root.setGravity(Gravity.CENTER_HORIZONTAL);
-
-        int padding = dp(24);
-
-        root.setPadding(
-                padding,
-                padding,
-                padding,
-                padding
-        );
-
-        return root;
-    }
-
-    private EditText createPinField() {
-
-        EditText field =
-                new EditText(this);
-
-        field.setInputType(
-                InputType.TYPE_CLASS_NUMBER
-                        | InputType.TYPE_NUMBER_VARIATION_PASSWORD
-        );
-
-        field.setTextSize(22);
-        field.setGravity(Gravity.CENTER);
-        field.setSingleLine(true);
-        field.setMaxLength(6);
-
-        LinearLayout.LayoutParams params =
-                new LinearLayout.LayoutParams(
-                        -1,
-                        dp(60)
-                );
-
-        params.setMargins(
-                0,
-                dp(10),
-                0,
-                dp(20)
-        );
-
-        field.setLayoutParams(params);
-
-        return field;
-    }
-
-    private int dp(int value) {
-
-        return (int)
-                (value *
-                        getResources()
-                                .getDisplayMetrics()
-                                .density
-                        + 0.5f);
     }
 
     private void toast(String message) {
