@@ -1,4 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- اجازه استفاده از حسگر اثر انگشت -->
+    <uses-permission android:name="android.permission.USE_FINGERPRINT" />
+
+    <!-- اجازه استفاده از احراز هویت بیومتریک -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
 
     <application
         android:allowBackup="true"
@@ -6,17 +14,24 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.HesabBourseMan">
 
+        <!-- صفحه قفل؛ نقطه ورود اصلی برنامه -->
         <activity
-            android:name=".MainActivity"
+            android:name=".LockActivity"
             android:screenOrientation="portrait"
             android:exported="true">
 
             <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
         </activity>
+
+        <!-- صفحه اصلی برنامه -->
+        <activity
+            android:name=".MainActivity"
+            android:screenOrientation="portrait"
+            android:exported="false" />
 
     </application>
 
