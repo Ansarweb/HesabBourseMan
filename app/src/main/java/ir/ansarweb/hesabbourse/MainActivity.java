@@ -1805,7 +1805,6 @@ public class MainActivity extends Activity {
 
         boolean found = false;
 
-        // Header
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
 
@@ -2509,7 +2508,7 @@ public class MainActivity extends Activity {
 
             found = true;
 
-            long id =
+            final long id =
                     cursor.getLong(
                             cursor.getColumnIndexOrThrow(
                                     "id"
@@ -3194,14 +3193,6 @@ public class MainActivity extends Activity {
                 if (p.isEmpty()) {
                     p = "اصلی";
                 }
-
-                /*
-                 * DatabaseHelper فعلی متد اختصاصی
-                 * updateMoneyTransaction ندارد.
-                 *
-                 * بنابراین تراکنش قبلی حذف و
-                 * همان تراکنش مالی دوباره ثبت می‌شود.
-                 */
 
                 db.deleteTransaction(id);
 
