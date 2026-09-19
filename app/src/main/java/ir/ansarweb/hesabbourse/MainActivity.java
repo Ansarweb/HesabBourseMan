@@ -111,76 +111,78 @@ public class MainActivity extends Activity {
 
     private void showStockSection() {
 
-        LinearLayout content = new LinearLayout(this);
-        content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(24, 24, 24, 24);
+    LinearLayout content = new LinearLayout(this);
+    content.setOrientation(LinearLayout.VERTICAL);
+    content.setPadding(24, 24, 24, 24);
 
-        ScrollView scroll = new ScrollView(this);
+    ScrollView scroll = new ScrollView(this);
 
-        Button back = new Button(this);
-        back.setText("⬅️ بازگشت");
-        back.setOnClickListener(v -> buildMainScreen());
-        content.addView(back);
+    Button back = new Button(this);
+    back.setText("⬅️ بازگشت");
+    back.setOnClickListener(v -> buildMainScreen());
 
-        TextView title = new TextView(this);
-        title.setText("📈 بخش سهام");
-        title.setTextSize(26);
-        title.setPadding(0, 20, 0, 25);
-        content.addView(title);
+    TextView title = new TextView(this);
+    title.setText("📈 بخش سهام");
+    title.setTextSize(26);
+    title.setPadding(0, 20, 0, 25);
+    content.addView(title);
 
-        Button dashboard = new Button(this);
-        dashboard.setText("📊 وضعیت سبدها");
-        dashboard.setOnClickListener(v -> showPortfolioDialog());
-        content.addView(dashboard);
+    Button dashboard = new Button(this);
+    dashboard.setText("📊 وضعیت سبدها");
+    dashboard.setOnClickListener(v -> showPortfolioDialog());
+    content.addView(dashboard);
 
-        Button buy = new Button(this);
-        buy.setText("🟢 ثبت خرید");
-        buy.setOnClickListener(v -> showTradeDialog("BUY"));
-        content.addView(buy);
+    Button buy = new Button(this);
+    buy.setText("🟢 ثبت خرید");
+    buy.setOnClickListener(v -> showTradeDialog("BUY"));
+    content.addView(buy);
 
-        Button sell = new Button(this);
-        sell.setText("🔴 ثبت فروش");
-        sell.setOnClickListener(v -> showTradeDialog("SELL"));
-        content.addView(sell);
+    Button sell = new Button(this);
+    sell.setText("🔴 ثبت فروش");
+    sell.setOnClickListener(v -> showTradeDialog("SELL"));
+    content.addView(sell);
 
-        Button deposit = new Button(this);
-        deposit.setText("💰 ثبت واریزی");
-        deposit.setOnClickListener(v -> showMoneyDialog("DEPOSIT"));
-        content.addView(deposit);
+    Button deposit = new Button(this);
+    deposit.setText("💰 ثبت واریزی");
+    deposit.setOnClickListener(v -> showMoneyDialog("DEPOSIT"));
+    content.addView(deposit);
 
-        Button withdraw = new Button(this);
-        withdraw.setText("💸 ثبت برداشت");
-        withdraw.setOnClickListener(v -> showMoneyDialog("WITHDRAW"));
-        content.addView(withdraw);
+    Button withdraw = new Button(this);
+    withdraw.setText("💸 ثبت برداشت");
+    withdraw.setOnClickListener(v -> showMoneyDialog("WITHDRAW"));
+    content.addView(withdraw);
 
-        Button history = new Button(this);
-        history.setText("📋 تاریخچه معاملات سهام");
-        history.setOnClickListener(v -> showHistoryDialog("STOCK"));
-        content.addView(history);
+    Button history = new Button(this);
+    history.setText("📋 تاریخچه معاملات سهام");
+    history.setOnClickListener(v -> showHistoryDialog("STOCK"));
+    content.addView(history);
 
-        Button moneyHistory = new Button(this);
-        moneyHistory.setText("💳 تاریخچه واریز و برداشت");
-        moneyHistory.setOnClickListener(v -> showMoneyHistoryDialog());
-        content.addView(moneyHistory);
+    Button moneyHistory = new Button(this);
+    moneyHistory.setText("💳 تاریخچه واریز و برداشت");
+    moneyHistory.setOnClickListener(v -> showMoneyHistoryDialog());
+    content.addView(moneyHistory);
 
-        Button realized = new Button(this);
-        realized.setText("💰 سود/زیان تحقق‌یافته");
-        realized.setOnClickListener(v -> showRealizedProfitDialog());
-        content.addView(realized);
+    Button realized = new Button(this);
+    realized.setText("💰 سود/زیان تحقق‌یافته");
+    realized.setOnClickListener(v -> showRealizedProfitDialog());
+    content.addView(realized);
 
-        Button search = new Button(this);
-        search.setText("🔎 جستجو در معاملات");
-        search.setOnClickListener(v -> showSearchDialog());
-        content.addView(search);
+    Button search = new Button(this);
+    search.setText("🔎 جستجو در معاملات");
+    search.setOnClickListener(v -> showSearchDialog());
+    content.addView(search);
 
-        Button cash = new Button(this);
-        cash.setText("💵 موجودی نقدی");
-        cash.setOnClickListener(v -> showCashBalance());
-        content.addView(cash);
+    Button cash = new Button(this);
+    cash.setText("💵 موجودی نقدی");
+    cash.setOnClickListener(v -> showCashBalance());
+    content.addView(cash);
 
-        scroll.addView(content);
-        setContentView(scroll);
-    }
+    // دکمه بازگشت در پایین صفحه
+    content.addView(back);
+
+    scroll.addView(content);
+    setContentView(scroll);
+}
 
     // =========================================================
     // OPTION SECTION
@@ -188,51 +190,53 @@ public class MainActivity extends Activity {
 
     private void showOptionSection() {
 
-        LinearLayout content = new LinearLayout(this);
-        content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(24, 24, 24, 24);
+    LinearLayout content = new LinearLayout(this);
+    content.setOrientation(LinearLayout.VERTICAL);
+    content.setPadding(24, 24, 24, 24);
 
-        ScrollView scroll = new ScrollView(this);
+    ScrollView scroll = new ScrollView(this);
 
-        Button back = new Button(this);
-        back.setText("⬅️ بازگشت");
-        back.setOnClickListener(v -> buildMainScreen());
-        content.addView(back);
+    Button back = new Button(this);
+    back.setText("⬅️ بازگشت");
+    back.setOnClickListener(v -> buildMainScreen());
 
-        TextView title = new TextView(this);
-        title.setText("🔵 معاملات آپشن");
-        title.setTextSize(26);
-        title.setPadding(0, 20, 0, 25);
-        content.addView(title);
+    TextView title = new TextView(this);
+    title.setText("🔵 معاملات آپشن");
+    title.setTextSize(26);
+    title.setPadding(0, 20, 0, 25);
+    content.addView(title);
 
-        Button optionBuy = new Button(this);
-        optionBuy.setText("🟢 خرید آپشن");
-        optionBuy.setOnClickListener(v -> showOptionDialog("BUY"));
-        content.addView(optionBuy);
+    Button optionBuy = new Button(this);
+    optionBuy.setText("🟢 خرید آپشن");
+    optionBuy.setOnClickListener(v -> showOptionDialog("BUY"));
+    content.addView(optionBuy);
 
-        Button optionSell = new Button(this);
-        optionSell.setText("🔴 فروش آپشن");
-        optionSell.setOnClickListener(v -> showOptionDialog("SELL"));
-        content.addView(optionSell);
+    Button optionSell = new Button(this);
+    optionSell.setText("🔴 فروش آپشن");
+    optionSell.setOnClickListener(v -> showOptionDialog("SELL"));
+    content.addView(optionSell);
 
-        Button optionHistory = new Button(this);
-        optionHistory.setText("📋 تاریخچه معاملات آپشن");
-        optionHistory.setOnClickListener(v -> showHistoryDialog("OPTION"));
-        content.addView(optionHistory);
+    Button optionHistory = new Button(this);
+    optionHistory.setText("📋 تاریخچه معاملات آپشن");
+    optionHistory.setOnClickListener(v -> showHistoryDialog("OPTION"));
+    content.addView(optionHistory);
 
-        Button optionPositions = new Button(this);
-        optionPositions.setText("📊 وضعیت پوزیشن‌های آپشن");
-        optionPositions.setOnClickListener(v -> showOptionPositions());
-        content.addView(optionPositions);
+    Button optionPositions = new Button(this);
+    optionPositions.setText("📊 وضعیت پوزیشن‌های آپشن");
+    optionPositions.setOnClickListener(v -> showOptionPositions());
+    content.addView(optionPositions);
 
-        Button optionRealized = new Button(this);
-        optionRealized.setText("💰 سود/زیان تحقق‌یافته آپشن");
-        optionRealized.setOnClickListener(v -> showOptionRealizedProfit());
-        content.addView(optionRealized);
+    Button optionRealized = new Button(this);
+    optionRealized.setText("💰 سود/زیان تحقق‌یافته آپشن");
+    optionRealized.setOnClickListener(v -> showOptionRealizedProfit());
+    content.addView(optionRealized);
 
-        scroll.addView(content);
-        setContentView(scroll);
-    }
+    // دکمه بازگشت در پایین صفحه
+    content.addView(back);
+
+    scroll.addView(content);
+    setContentView(scroll);
+}
 
     // =========================================================
     // OPTION TRADE
