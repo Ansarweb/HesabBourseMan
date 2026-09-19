@@ -3,6 +3,7 @@ package ir.ansarweb.hesabbourse;
 import android.database.Cursor;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -12,344 +13,446 @@ public class PortfolioEngine {
 
     public static class Position {
 
-        public String portfolio;
-        public String symbol;
+        public String assetType = "STOCK";
 
-        // موجودی فعلی
-        public double quantity;
+        public String portfolio = "";
+        public String symbol = "";
 
-        // بهای تمام شده موجودی فعلی
-        public double cost;
+        // Option fields
+        public String underlying = "";
+        public String optionType = "";
+        public double strikePrice = 0;
+        public String expiryDate = "";
+        public double contractSize = 0;
 
-        // اطلاعات کل خریدها
-        public double buyQuantity;
-        public double buyAmount;
-        public double buyFees;
+        // Stock / Long option
+        public double quantity = 0;
+        public double cost = 0;
 
-        // اطلاعات کل فروش‌ها
-        public double sellQuantity;
-        public double sellAmount;
-        public double sellFees;
+        // Stock statistics
+        public double buyQuantity = 0;
+        public double buyAmount = 0;
+        public double buyFees = 0;
 
-        // سود تحقق یافته
-        public double realizedProfit;
+        public double sellQuantity = 0;
+        public double sellAmount = 0;
+        public double sellFees = 0;
 
-        public Position(
-                String portfolio,
-                String symbol) {
+        // Option statistics
+        public double longQuantity = 0;
+        public double longCost = 0;
 
-            this.portfolio = portfolio;
-            this.symbol = symbol;
+        public double shortQuantity = 0;
+        public double shortCredit = 0;
+
+        public double realizedProfit = 0;
+        public double realizedCost = 0;
+
+        public boolean isOption() {
+            return "OPTION".equalsIgnoreCase(assetType);
         }
 
-        // میانگین قیمت تمام شده خریدها با احتساب کارمزد
-        public double averageBuyPrice() {
-
-            if (buyQuantity <= 0) {
-                return 0;
-            }
-
-            return (buyAmount + buyFees)
-                    / buyQuantity;
+        public boolean isStock() {
+            return !isOption();
         }
 
-        // میانگین قیمت فروش
-        public double averageSellPrice() {
-
-            if (sellQuantity <= 0) {
-                return 0;
-            }
-
-            return sellAmount
-                    / sellQuantity;
-        }
-
-        // میانگین بهای تمام شده موجودی فعلی
         public double averagePrice() {
-
-            if (quantity <= 0) {
+            if (isOption()) {
+                if (longQuantity > 0) {
+                    return longCost / longQuantity;
+                }
                 return 0;
             }
 
+            if (quantity <= 0) return 0;
             return cost / quantity;
         }
 
-        // کل هزینه خریدها
-        public double totalBuyCost() {
-
-            return buyAmount + buyFees;
+        public double realizedProfitPercent() {
+            if (realizedCost == 0) return 0;
+            return (realizedProfit / realizedCost) * 100.0;
         }
 
-        // خالص دریافتی از فروش‌ها
-        public double totalSellNet() {
+        public boolean hasRealizedProfit() {
+            return Math.abs(realizedProfit) > 0.0000001;
+        }
 
-            return sellAmount - sellFees;
+        public double netOptionPosition() {
+            return longQuantity - shortQuantity;
+        }
+
+        public String optionKey() {
+            return portfolio + "|" +
+                    underlying + "|" +
+                    optionType + "|" +
+                    strikePrice + "|" +
+                    expiryDate + "|" +
+                    contractSize;
         }
     }
 
-    /*
-     * یک رکورد موقت برای اینکه بتوانیم معاملات را
-     * مستقل از ترتیب Cursor مرتب کنیم.
-     */
     private static class TradeRecord {
 
+        long id;
+        long date;
+
         String type;
+        String assetType;
         String portfolio;
         String symbol;
 
-        double quantity;
-        double price;
-        double fee;
-        double amount;
+        String underlying;
+        String optionType;
+        double strikePrice;
+        String expiryDate;
+        double contractSize;
+        String positionType;
 
-        long date;
-        long id;
+        double quantity;
+        double amount;
+        double fee;
+        double price;
     }
 
-    public static Map<String, Position> calculate(
-            Cursor cursor) {
+    public static Map<String, Position> calculate(Cursor cursor) {
 
-        Map<String, Position> positions =
-                new LinkedHashMap<>();
+        List<TradeRecord> trades = new ArrayList<>();
 
         if (cursor == null) {
-            return positions;
+            return new LinkedHashMap<>();
         }
 
-        /*
-         * بسیار مهم:
-         *
-         * Cursor دیتابیس ممکن است DESC باشد.
-         * بنابراین ابتدا تمام معاملات را می‌خوانیم
-         * و سپس آنها را بر اساس تاریخ و ID از قدیمی
-         * به جدید مرتب می‌کنیم.
-         */
-        List<TradeRecord> trades =
-                new ArrayList<>();
-
-        int typeIndex =
-                cursor.getColumnIndexOrThrow("type");
-
-        int portfolioIndex =
-                cursor.getColumnIndexOrThrow("portfolio");
-
-        int symbolIndex =
-                cursor.getColumnIndexOrThrow("symbol");
-
-        int quantityIndex =
-                cursor.getColumnIndexOrThrow("quantity");
-
-        int priceIndex =
-                cursor.getColumnIndexOrThrow("price");
-
-        int feeIndex =
-                cursor.getColumnIndexOrThrow("fee");
-
-        int amountIndex =
-                cursor.getColumnIndexOrThrow("amount");
-
-        int dateIndex =
-                cursor.getColumnIndexOrThrow("date");
-
-        int idIndex =
-                cursor.getColumnIndexOrThrow("id");
+        int idIndex = cursor.getColumnIndex("id");
+        int dateIndex = cursor.getColumnIndex("date");
+        int typeIndex = cursor.getColumnIndex("type");
+        int assetTypeIndex = cursor.getColumnIndex("asset_type");
+        int portfolioIndex = cursor.getColumnIndex("portfolio");
+        int symbolIndex = cursor.getColumnIndex("symbol");
+        int underlyingIndex = cursor.getColumnIndex("underlying");
+        int optionTypeIndex = cursor.getColumnIndex("option_type");
+        int strikeIndex = cursor.getColumnIndex("strike_price");
+        int expiryIndex = cursor.getColumnIndex("expiry_date");
+        int contractSizeIndex = cursor.getColumnIndex("contract_size");
+        int positionTypeIndex = cursor.getColumnIndex("position_type");
+        int quantityIndex = cursor.getColumnIndex("quantity");
+        int amountIndex = cursor.getColumnIndex("amount");
+        int feeIndex = cursor.getColumnIndex("fee");
+        int priceIndex = cursor.getColumnIndex("price");
 
         while (cursor.moveToNext()) {
 
-            TradeRecord trade =
-                    new TradeRecord();
+            TradeRecord t = new TradeRecord();
 
-            trade.type =
-                    cursor.getString(typeIndex);
+            t.id = idIndex >= 0 ? cursor.getLong(idIndex) : 0;
+            t.date = dateIndex >= 0 ? cursor.getLong(dateIndex) : 0;
 
-            trade.portfolio =
-                    cursor.getString(portfolioIndex);
+            t.type = typeIndex >= 0 ? cursor.getString(typeIndex) : "";
+            t.assetType = assetTypeIndex >= 0
+                    ? cursor.getString(assetTypeIndex)
+                    : "STOCK";
 
-            trade.symbol =
-                    cursor.getString(symbolIndex);
+            if (t.assetType == null || t.assetType.trim().isEmpty()) {
+                t.assetType = "STOCK";
+            }
 
-            trade.quantity =
-                    cursor.getDouble(quantityIndex);
+            t.portfolio = portfolioIndex >= 0
+                    ? cursor.getString(portfolioIndex)
+                    : "اصلی";
 
-            trade.price =
-                    cursor.getDouble(priceIndex);
+            t.symbol = symbolIndex >= 0
+                    ? cursor.getString(symbolIndex)
+                    : "";
 
-            trade.fee =
-                    cursor.getDouble(feeIndex);
+            t.underlying = underlyingIndex >= 0
+                    ? cursor.getString(underlyingIndex)
+                    : "";
 
-            trade.amount =
-                    cursor.getDouble(amountIndex);
+            t.optionType = optionTypeIndex >= 0
+                    ? cursor.getString(optionTypeIndex)
+                    : "";
 
-            trade.date =
-                    cursor.getLong(dateIndex);
+            t.strikePrice = strikeIndex >= 0
+                    ? cursor.getDouble(strikeIndex)
+                    : 0;
 
-            trade.id =
-                    cursor.getLong(idIndex);
+            t.expiryDate = expiryIndex >= 0
+                    ? cursor.getString(expiryIndex)
+                    : "";
 
-            trades.add(trade);
+            t.contractSize = contractSizeIndex >= 0
+                    ? cursor.getDouble(contractSizeIndex)
+                    : 0;
+
+            t.positionType = positionTypeIndex >= 0
+                    ? cursor.getString(positionTypeIndex)
+                    : "";
+
+            t.quantity = quantityIndex >= 0
+                    ? cursor.getDouble(quantityIndex)
+                    : 0;
+
+            t.amount = amountIndex >= 0
+                    ? cursor.getDouble(amountIndex)
+                    : 0;
+
+            t.fee = feeIndex >= 0
+                    ? cursor.getDouble(feeIndex)
+                    : 0;
+
+            t.price = priceIndex >= 0
+                    ? cursor.getDouble(priceIndex)
+                    : 0;
+
+            trades.add(t);
         }
 
         /*
-         * قدیمی‌ترین معامله اول.
-         *
-         * اگر دو معامله دقیقاً زمان یکسان داشته باشند،
-         * ID تعیین‌کننده ترتیب خواهد بود.
+         * مهم:
+         * تاریخچه دیتابیس ممکن است DESC باشد.
+         * برای محاسبه درست سود و میانگین باید معاملات
+         * از قدیمی به جدید پردازش شوند.
          */
-        trades.sort(
-                new Comparator<TradeRecord>() {
+        Collections.sort(trades, new Comparator<TradeRecord>() {
+            @Override
+            public int compare(TradeRecord a, TradeRecord b) {
 
-                    @Override
-                    public int compare(
-                            TradeRecord a,
-                            TradeRecord b) {
+                int dateCompare = Long.compare(a.date, b.date);
 
-                        int dateCompare =
-                                Long.compare(
-                                        a.date,
-                                        b.date
-                                );
-
-                        if (dateCompare != 0) {
-                            return dateCompare;
-                        }
-
-                        return Long.compare(
-                                a.id,
-                                b.id
-                        );
-                    }
+                if (dateCompare != 0) {
+                    return dateCompare;
                 }
-        );
 
-        /*
-         * حالا معاملات را به ترتیب صحیح پردازش می‌کنیم.
-         */
+                return Long.compare(a.id, b.id);
+            }
+        });
+
+        Map<String, Position> positions = new LinkedHashMap<>();
+
         for (TradeRecord trade : trades) {
 
-            String type =
-                    trade.type;
-
-            String portfolio =
-                    trade.portfolio;
-
-            String symbol =
-                    trade.symbol;
-
-            if (portfolio == null ||
-                    portfolio.trim().isEmpty()) {
-
-                portfolio = "اصلی";
-            }
-
-            if (symbol == null ||
-                    symbol.trim().isEmpty()) {
-
+            if ("DEPOSIT".equalsIgnoreCase(trade.type)
+                    || "WITHDRAW".equalsIgnoreCase(trade.type)) {
                 continue;
             }
 
-            String key =
-                    portfolio + "|" + symbol;
+            if ("OPTION".equalsIgnoreCase(trade.assetType)) {
 
-            Position position =
-                    positions.get(key);
+                processOptionTrade(
+                        positions,
+                        trade
+                );
 
-            if (position == null) {
+            } else {
 
-                position =
-                        new Position(
-                                portfolio,
-                                symbol
-                        );
-
-                positions.put(
-                        key,
-                        position
+                processStockTrade(
+                        positions,
+                        trade
                 );
             }
+        }
 
-            double quantity =
-                    trade.quantity;
+        return positions;
+    }
 
-            double fee =
-                    trade.fee;
+    // =========================================================
+    // STOCK
+    // =========================================================
 
-            double amount =
-                    trade.amount;
+    private static void processStockTrade(
+            Map<String, Position> positions,
+            TradeRecord trade
+    ) {
+
+        String portfolio = safe(trade.portfolio);
+        String symbol = safe(trade.symbol);
+
+        if (symbol.isEmpty()) {
+            return;
+        }
+
+        String key = "STOCK|" + portfolio + "|" + symbol;
+
+        Position position = positions.get(key);
+
+        if (position == null) {
+
+            position = new Position();
+
+            position.assetType = "STOCK";
+            position.portfolio = portfolio;
+            position.symbol = symbol;
+
+            positions.put(key, position);
+        }
+
+        if ("BUY".equalsIgnoreCase(trade.type)) {
+
+            double qty = Math.max(0, trade.quantity);
+            double amount = Math.max(0, trade.amount);
+            double fee = Math.max(0, trade.fee);
+
+            if (qty <= 0) {
+                return;
+            }
+
+            position.quantity += qty;
+            position.cost += amount + fee;
+
+            position.buyQuantity += qty;
+            position.buyAmount += amount;
+            position.buyFees += fee;
+
+        } else if ("SELL".equalsIgnoreCase(trade.type)) {
+
+            double requestedQty = Math.max(0, trade.quantity);
+
+            if (requestedQty <= 0 || position.quantity <= 0) {
+                return;
+            }
+
+            double sellQty = Math.min(
+                    requestedQty,
+                    position.quantity
+            );
+
+            double ratio = requestedQty == 0
+                    ? 0
+                    : sellQty / requestedQty;
+
+            double effectiveAmount = trade.amount * ratio;
+            double effectiveFee = trade.fee * ratio;
+
+            double averageCost =
+                    position.quantity > 0
+                            ? position.cost / position.quantity
+                            : 0;
+
+            double costOfSold =
+                    sellQty * averageCost;
+
+            double netSale =
+                    effectiveAmount - effectiveFee;
+
+            double realized =
+                    netSale - costOfSold;
+
+            position.realizedProfit += realized;
+            position.realizedCost += costOfSold;
+
+            position.sellQuantity += sellQty;
+            position.sellAmount += effectiveAmount;
+            position.sellFees += effectiveFee;
+
+            position.quantity -= sellQty;
+            position.cost -= costOfSold;
+
+            if (Math.abs(position.quantity) < 0.0000001) {
+                position.quantity = 0;
+            }
+
+            if (Math.abs(position.cost) < 0.0000001) {
+                position.cost = 0;
+            }
+        }
+    }
+
+    // =========================================================
+    // OPTIONS
+    // =========================================================
+
+    private static void processOptionTrade(
+            Map<String, Position> positions,
+            TradeRecord trade
+    ) {
+
+        String portfolio = safe(trade.portfolio);
+        String underlying = safe(trade.underlying);
+        String optionType = safe(trade.optionType);
+        String expiry = safe(trade.expiryDate);
+
+        String key =
+                "OPTION|"
+                        + portfolio + "|"
+                        + underlying + "|"
+                        + optionType + "|"
+                        + trade.strikePrice + "|"
+                        + expiry + "|"
+                        + trade.contractSize;
+
+        Position position = positions.get(key);
+
+        if (position == null) {
+
+            position = new Position();
+
+            position.assetType = "OPTION";
+            position.portfolio = portfolio;
+            position.symbol = safe(trade.symbol);
+
+            position.underlying = underlying;
+            position.optionType = optionType;
+            position.strikePrice = trade.strikePrice;
+            position.expiryDate = expiry;
+            position.contractSize = trade.contractSize;
+
+            positions.put(key, position);
+        }
+
+        String positionType = safe(trade.positionType).toUpperCase();
+
+        /*
+         * اگر position_type خالی باشد،
+         * برای سازگاری با داده‌های قدیمی LONG در نظر گرفته می‌شود.
+         */
+        if (positionType.isEmpty()) {
+            positionType = "LONG";
+        }
+
+        double qty = Math.max(0, trade.quantity);
+        double amount = Math.max(0, trade.amount);
+        double fee = Math.max(0, trade.fee);
+
+        if (qty <= 0) {
+            return;
+        }
+
+        // -----------------------------------------------------
+        // LONG
+        // -----------------------------------------------------
+
+        if ("LONG".equals(positionType)) {
 
             /*
-             * =========================
-             * خرید
-             * =========================
+             * BUY + LONG
+             * باز کردن / افزایش موقعیت لانگ
              */
-            if ("BUY".equals(type)) {
+            if ("BUY".equalsIgnoreCase(trade.type)) {
 
-                double buyCost =
-                        amount + fee;
+                position.longQuantity += qty;
+                position.longCost += amount + fee;
 
-                position.buyQuantity +=
-                        quantity;
+                position.buyQuantity += qty;
+                position.buyAmount += amount;
+                position.buyFees += fee;
 
-                position.buyAmount +=
-                        amount;
-
-                position.buyFees +=
-                        fee;
-
-                position.cost +=
-                        buyCost;
-
-                position.quantity +=
-                        quantity;
             }
 
             /*
-             * =========================
-             * فروش
-             * =========================
+             * SELL + LONG
+             * بستن موقعیت لانگ
              */
-            else if ("SELL".equals(type)) {
+            else if ("SELL".equalsIgnoreCase(trade.type)) {
 
-                /*
-                 * فروش نمی‌تواند بیشتر از موجودی
-                 * واقعی باشد.
-                 */
-                double sellQuantity =
-                        Math.min(
-                                quantity,
-                                position.quantity
-                        );
-
-                if (sellQuantity <= 0) {
-                    continue;
+                if (position.longQuantity <= 0) {
+                    return;
                 }
 
-                /*
-                 * میانگین بهای تمام شده درستِ
-                 * موجودی در لحظه فروش.
-                 */
-                double average =
-                        position.quantity > 0
-                                ? position.cost
-                                / position.quantity
-                                : 0;
+                double closeQty =
+                        Math.min(qty, position.longQuantity);
 
-                /*
-                 * بهای تمام شده سهم‌هایی که فروخته شده‌اند.
-                 */
-                double costOfSold =
-                        sellQuantity * average;
-
-                /*
-                 * اگر فروش کامل باشد،
-                 * کل مبلغ و کارمزد اعمال می‌شود.
-                 *
-                 * اگر فروش ثبت‌شده بیشتر از موجودی باشد،
-                 * مبلغ و کارمزد متناسب با مقدار واقعی
-                 * قابل فروش محاسبه می‌شود.
-                 */
                 double ratio =
-                        quantity > 0
-                                ? sellQuantity / quantity
+                        qty > 0
+                                ? closeQty / qty
                                 : 0;
 
                 double effectiveAmount =
@@ -358,72 +461,140 @@ public class PortfolioEngine {
                 double effectiveFee =
                         fee * ratio;
 
-                /*
-                 * ثبت آمار فروش
-                 */
-                position.sellQuantity +=
-                        sellQuantity;
+                double averageLongCost =
+                        position.longQuantity > 0
+                                ? position.longCost
+                                / position.longQuantity
+                                : 0;
 
-                position.sellAmount +=
-                        effectiveAmount;
+                double costOfClosed =
+                        closeQty * averageLongCost;
 
-                position.sellFees +=
-                        effectiveFee;
+                double netSale =
+                        effectiveAmount - effectiveFee;
 
-                /*
-                 * سود/زیان تحقق‌یافته:
-                 *
-                 * خالص دریافتی فروش
-                 * منهای بهای تمام‌شده سهم فروخته‌شده
-                 */
-                double netSell =
-                        effectiveAmount
-                                - effectiveFee;
+                double realized =
+                        netSale - costOfClosed;
 
-                position.realizedProfit +=
-                        netSell
-                                - costOfSold;
+                position.realizedProfit += realized;
+                position.realizedCost += costOfClosed;
 
-                /*
-                 * کاهش موجودی
-                 */
-                position.quantity -=
-                        sellQuantity;
+                position.longQuantity -= closeQty;
+                position.longCost -= costOfClosed;
 
-                /*
-                 * کاهش بهای تمام‌شده
-                 */
-                position.cost -=
-                        costOfSold;
+                position.sellQuantity += closeQty;
+                position.sellAmount += effectiveAmount;
+                position.sellFees += effectiveFee;
 
-                /*
-                 * جلوگیری از خطای اعشاری
-                 */
-                if (Math.abs(position.quantity)
-                        < 0.0000001) {
-
-                    position.quantity = 0;
-                }
-
-                if (Math.abs(position.cost)
-                        < 0.0000001) {
-
-                    position.cost = 0;
-                }
-
-                /*
-                 * هیچ‌وقت موجودی یا هزینه منفی نشود.
-                 */
-                if (position.quantity < 0) {
-                    position.quantity = 0;
-                }
-
-                if (position.cost < 0) {
-                    position.cost = 0;
-                }
+                cleanOptionNumbers(position);
             }
         }
 
-        return positions;
+        // -----------------------------------------------------
+        // SHORT
+        // -----------------------------------------------------
+
+        else if ("SHORT".equals(positionType)) {
+
+            /*
+             * SELL + SHORT
+             * باز کردن / افزایش موقعیت شورت
+             *
+             * وجه خالص دریافتی:
+             * premium - fee
+             */
+            if ("SELL".equalsIgnoreCase(trade.type)) {
+
+                double netCredit =
+                        amount - fee;
+
+                position.shortQuantity += qty;
+                position.shortCredit += netCredit;
+
+                position.sellQuantity += qty;
+                position.sellAmount += amount;
+                position.sellFees += fee;
+            }
+
+            /*
+             * BUY + SHORT
+             * بستن موقعیت شورت
+             */
+            else if ("BUY".equalsIgnoreCase(trade.type)) {
+
+                if (position.shortQuantity <= 0) {
+                    return;
+                }
+
+                double closeQty =
+                        Math.min(qty, position.shortQuantity);
+
+                double ratio =
+                        qty > 0
+                                ? closeQty / qty
+                                : 0;
+
+                double effectiveAmount =
+                        amount * ratio;
+
+                double effectiveFee =
+                        fee * ratio;
+
+                double creditPerContract =
+                        position.shortQuantity > 0
+                                ? position.shortCredit
+                                / position.shortQuantity
+                                : 0;
+
+                double openingCredit =
+                        creditPerContract * closeQty;
+
+                double closingCost =
+                        effectiveAmount + effectiveFee;
+
+                double realized =
+                        openingCredit - closingCost;
+
+                position.realizedProfit += realized;
+
+                /*
+                 * برای درصد سود شورت،
+                 * مبلغ دریافتی اولیه را مبنای محاسبه نگه می‌داریم.
+                 */
+                position.realizedCost += openingCredit;
+
+                position.shortQuantity -= closeQty;
+                position.shortCredit -= openingCredit;
+
+                position.buyQuantity += closeQty;
+                position.buyAmount += effectiveAmount;
+                position.buyFees += effectiveFee;
+
+                cleanOptionNumbers(position);
+            }
+        }
+    }
+
+    private static void cleanOptionNumbers(Position position) {
+
+        if (Math.abs(position.longQuantity) < 0.0000001) {
+            position.longQuantity = 0;
+        }
+
+        if (Math.abs(position.longCost) < 0.0000001) {
+            position.longCost = 0;
+        }
+
+        if (Math.abs(position.shortQuantity) < 0.0000001) {
+            position.shortQuantity = 0;
+        }
+
+        if (Math.abs(position.shortCredit) < 0.0000001) {
+            position.shortCredit = 0;
+        }
+    }
+
+    private static String safe(String value) {
+        return value == null ? "" : value.trim();
     }
 }
