@@ -17,7 +17,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String DATABASE_NAME =
             "hesab_bourse.db";
 
-    private static final int DB_VERSION = 6;
+    private static final int DB_VERSION = 7;
 
     private static final String TABLE =
             "transactions";
@@ -36,18 +36,57 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
         db.execSQL(
                 "CREATE TABLE " + TABLE + " (" +
+
                         "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+
+                        // نوع عملیات:
+                        // BUY / SELL / DEPOSIT / WITHDRAW
                         "type TEXT NOT NULL," +
+
+                        // نوع دارایی:
+                        // STOCK / OPTION
+                        "asset_type TEXT DEFAULT 'STOCK'," +
+
                         "portfolio TEXT DEFAULT 'اصلی'," +
+
                         "broker TEXT DEFAULT ''," +
+
                         "symbol TEXT DEFAULT ''," +
+
                         "quantity REAL DEFAULT 0," +
+
+                        // برای سهام: قیمت سهم
+                        // برای آپشن: پرمیوم
                         "price REAL DEFAULT 0," +
+
                         "fee REAL DEFAULT 0," +
+
                         "amount REAL DEFAULT 0," +
+
                         "description TEXT DEFAULT ''," +
+
+                        // اطلاعات مخصوص آپشن
+                        "underlying TEXT DEFAULT ''," +
+
+                        // CALL / PUT
+                        "option_type TEXT DEFAULT ''," +
+
+                        // قیمت اعمال
+                        "strike_price REAL DEFAULT 0," +
+
+                        // تاریخ سررسید
+                        "expiry_date TEXT DEFAULT ''," +
+
+                        // اندازه قرارداد
+                        "contract_size REAL DEFAULT 0," +
+
+                        // LONG / SHORT
+                        "position_type TEXT DEFAULT ''," +
+
                         "date INTEGER NOT NULL," +
+
                         "date_shamsi TEXT DEFAULT ''" +
+
                         ")"
         );
     }
@@ -80,6 +119,78 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             }
 
             fillOldPersianDates(db);
+        }
+
+        /*
+         * نسخه 7:
+         * اضافه شدن زیرساخت معاملات آپشن
+         */
+        if (oldVersion < 7) {
+
+            addColumnIfMissing(
+                    db,
+                    "asset_type",
+                    "TEXT DEFAULT 'STOCK'"
+            );
+
+            addColumnIfMissing(
+                    db,
+                    "underlying",
+                    "TEXT DEFAULT ''"
+            );
+
+            addColumnIfMissing(
+                    db,
+                    "option_type",
+                    "TEXT DEFAULT ''"
+            );
+
+            addColumnIfMissing(
+                    db,
+                    "strike_price",
+                    "REAL DEFAULT 0"
+            );
+
+            addColumnIfMissing(
+                    db,
+                    "expiry_date",
+                    "TEXT DEFAULT ''"
+            );
+
+            addColumnIfMissing(
+                    db,
+                    "contract_size",
+                    "REAL DEFAULT 0"
+            );
+
+            addColumnIfMissing(
+                    db,
+                    "position_type",
+                    "TEXT DEFAULT ''"
+            );
+        }
+    }
+
+    /*
+     * اضافه کردن ستون فقط در صورتی که قبلاً وجود نداشته باشد.
+     */
+    private void addColumnIfMissing(
+            SQLiteDatabase db,
+            String column,
+            String definition) {
+
+        try {
+
+            db.execSQL(
+                    "ALTER TABLE " + TABLE +
+                            " ADD COLUMN " +
+                            column +
+                            " " +
+                            definition
+            );
+
+        } catch (Exception ignored) {
+            // ستون از قبل وجود داشته است.
         }
     }
 
@@ -238,9 +349,10 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         );
     }
 
-    /*
-     * ثبت عمومی تراکنش
-     */
+    // =========================================================
+    // تراکنش معمولی سهام
+    // =========================================================
+
     public long addTransaction(
             String type,
             String portfolio,
@@ -264,11 +376,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         );
     }
 
-    /*
-     * ثبت تراکنش همراه توضیحات
-     *
-     * تاریخ و ساعت به‌صورت خودکار ثبت می‌شود.
-     */
     public long addTransactionWithDescription(
             String type,
             String portfolio,
@@ -286,15 +393,17 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         long now =
                 System.currentTimeMillis();
 
-        String shamsiDate =
-                toPersianDateTime(now);
-
         ContentValues values =
                 new ContentValues();
 
         values.put(
                 "type",
                 type == null ? "" : type
+        );
+
+        values.put(
+                "asset_type",
+                "STOCK"
         );
 
         values.put(
@@ -349,7 +458,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
         values.put(
                 "date_shamsi",
-                shamsiDate
+                toPersianDateTime(now)
         );
 
         return db.insert(
@@ -359,10 +468,184 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         );
     }
 
+    // =========================================================
+    // ثبت معامله آپشن
+    // =========================================================
+
     /*
-     * دریافت همه تراکنش‌ها
-     * جدیدترین عملیات اول نمایش داده می‌شود.
+     * فرمول کارمزد آپشن:
+     *
+     * Premium × Contract Size × 0.00103
+     *
+     * تعداد قرارداد در quantity ذخیره می‌شود.
      */
+    public long addOptionTransaction(
+            String type,
+            String portfolio,
+            String broker,
+            String symbol,
+            String underlying,
+            String optionType,
+            double strikePrice,
+            String expiryDate,
+            double quantity,
+            double premium,
+            double contractSize,
+            String positionType,
+            String description) {
+
+        SQLiteDatabase db =
+                getWritableDatabase();
+
+        long now =
+                System.currentTimeMillis();
+
+        /*
+         * مبلغ کل پریمیوم
+         */
+        double amount =
+                premium
+                        * quantity
+                        * contractSize;
+
+        /*
+         * کارمزد آپشن
+         *
+         * طبق فرمول تعیین‌شده:
+         *
+         * Premium × Contract Size × 0.00103
+         *
+         * برای هر قرارداد
+         */
+        double feePerContract =
+                premium
+                        * contractSize
+                        * 0.00103;
+
+        double fee =
+                feePerContract
+                        * quantity;
+
+        ContentValues values =
+                new ContentValues();
+
+        values.put(
+                "type",
+                type == null ? "" : type
+        );
+
+        values.put(
+                "asset_type",
+                "OPTION"
+        );
+
+        values.put(
+                "portfolio",
+                portfolio == null ||
+                        portfolio.trim().isEmpty()
+                        ? "اصلی"
+                        : portfolio.trim()
+        );
+
+        values.put(
+                "broker",
+                broker == null ? "" : broker
+        );
+
+        values.put(
+                "symbol",
+                symbol == null ? "" : symbol
+        );
+
+        values.put(
+                "quantity",
+                quantity
+        );
+
+        /*
+         * در آپشن price همان Premium است.
+         */
+        values.put(
+                "price",
+                premium
+        );
+
+        values.put(
+                "fee",
+                fee
+        );
+
+        values.put(
+                "amount",
+                amount
+        );
+
+        values.put(
+                "description",
+                description == null
+                        ? ""
+                        : description
+        );
+
+        values.put(
+                "underlying",
+                underlying == null
+                        ? ""
+                        : underlying
+        );
+
+        values.put(
+                "option_type",
+                optionType == null
+                        ? ""
+                        : optionType
+        );
+
+        values.put(
+                "strike_price",
+                strikePrice
+        );
+
+        values.put(
+                "expiry_date",
+                expiryDate == null
+                        ? ""
+                        : expiryDate
+        );
+
+        values.put(
+                "contract_size",
+                contractSize
+        );
+
+        values.put(
+                "position_type",
+                positionType == null
+                        ? ""
+                        : positionType
+        );
+
+        values.put(
+                "date",
+                now
+        );
+
+        values.put(
+                "date_shamsi",
+                toPersianDateTime(now)
+        );
+
+        return db.insert(
+                TABLE,
+                null,
+                values
+        );
+    }
+
+    // =========================================================
+    // دریافت همه تراکنش‌ها
+    // =========================================================
+
     public Cursor getAllTransactions() {
 
         SQLiteDatabase db =
@@ -379,9 +662,10 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         );
     }
 
-    /*
-     * دریافت یک تراکنش
-     */
+    // =========================================================
+    // دریافت یک تراکنش
+    // =========================================================
+
     public Cursor getTransaction(
             long id) {
 
@@ -401,9 +685,10 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         );
     }
 
-    /*
-     * جستجوی تراکنش‌ها
-     */
+    // =========================================================
+    // جستجو
+    // =========================================================
+
     public Cursor searchTransactions(
             String query) {
 
@@ -429,8 +714,10 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                         "portfolio LIKE ? OR " +
                         "broker LIKE ? OR " +
                         "description LIKE ? OR " +
+                        "underlying LIKE ? OR " +
                         "date_shamsi LIKE ?",
                 new String[]{
+                        like,
                         like,
                         like,
                         like,
@@ -443,9 +730,10 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         );
     }
 
-    /*
-     * ویرایش تراکنش
-     */
+    // =========================================================
+    // ویرایش تراکنش سهام
+    // =========================================================
+
     public int updateTransaction(
             long id,
             String type,
@@ -467,6 +755,11 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         values.put(
                 "type",
                 type == null ? "" : type
+        );
+
+        values.put(
+                "asset_type",
+                "STOCK"
         );
 
         values.put(
@@ -514,10 +807,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                         : description
         );
 
-        /*
-         * در ویرایش، تاریخ عملیات اصلی
-         * دست‌نخورده باقی می‌ماند.
-         */
         return db.update(
                 TABLE,
                 values,
@@ -528,9 +817,150 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         );
     }
 
-    /*
-     * حذف تراکنش
-     */
+    // =========================================================
+    // ویرایش آپشن
+    // =========================================================
+
+    public int updateOptionTransaction(
+            long id,
+            String type,
+            String portfolio,
+            String broker,
+            String symbol,
+            String underlying,
+            String optionType,
+            double strikePrice,
+            String expiryDate,
+            double quantity,
+            double premium,
+            double contractSize,
+            String positionType,
+            String description) {
+
+        SQLiteDatabase db =
+                getWritableDatabase();
+
+        double amount =
+                premium
+                        * quantity
+                        * contractSize;
+
+        double fee =
+                premium
+                        * contractSize
+                        * 0.00103
+                        * quantity;
+
+        ContentValues values =
+                new ContentValues();
+
+        values.put(
+                "type",
+                type == null ? "" : type
+        );
+
+        values.put(
+                "asset_type",
+                "OPTION"
+        );
+
+        values.put(
+                "portfolio",
+                portfolio == null ||
+                        portfolio.trim().isEmpty()
+                        ? "اصلی"
+                        : portfolio.trim()
+        );
+
+        values.put(
+                "broker",
+                broker == null ? "" : broker
+        );
+
+        values.put(
+                "symbol",
+                symbol == null ? "" : symbol
+        );
+
+        values.put(
+                "quantity",
+                quantity
+        );
+
+        values.put(
+                "price",
+                premium
+        );
+
+        values.put(
+                "fee",
+                fee
+        );
+
+        values.put(
+                "amount",
+                amount
+        );
+
+        values.put(
+                "underlying",
+                underlying == null
+                        ? ""
+                        : underlying
+        );
+
+        values.put(
+                "option_type",
+                optionType == null
+                        ? ""
+                        : optionType
+        );
+
+        values.put(
+                "strike_price",
+                strikePrice
+        );
+
+        values.put(
+                "expiry_date",
+                expiryDate == null
+                        ? ""
+                        : expiryDate
+        );
+
+        values.put(
+                "contract_size",
+                contractSize
+        );
+
+        values.put(
+                "position_type",
+                positionType == null
+                        ? ""
+                        : positionType
+        );
+
+        values.put(
+                "description",
+                description == null
+                        ? ""
+                        : description
+        );
+
+        return db.update(
+                TABLE,
+                values,
+                "id=?",
+                new String[]{
+                        String.valueOf(id)
+                }
+        );
+    }
+
+    // =========================================================
+    // حذف
+    // =========================================================
+
     public int deleteTransaction(
             long id) {
 
@@ -546,9 +976,10 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         );
     }
 
-    /*
-     * محاسبه موجودی نقدی یک سبد
-     */
+    // =========================================================
+    // موجودی نقدی
+    // =========================================================
+
     public double getCashBalance(
             String portfolio) {
 
@@ -574,14 +1005,14 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     rowPortfolio = "اصلی";
                 }
 
-                if (portfolio == null ||
-                        portfolio.trim().isEmpty()) {
-
-                    portfolio = "اصلی";
-                }
+                String selectedPortfolio =
+                        portfolio == null ||
+                                portfolio.trim().isEmpty()
+                                ? "اصلی"
+                                : portfolio;
 
                 if (!rowPortfolio.equals(
-                        portfolio)) {
+                        selectedPortfolio)) {
 
                     continue;
                 }
@@ -607,6 +1038,16 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                                 )
                         );
 
+                String assetType =
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow(
+                                        "asset_type"
+                                )
+                        );
+
+                /*
+                 * واریز و برداشت
+                 */
                 if ("DEPOSIT".equals(type)) {
 
                     balance += amount;
@@ -615,6 +1056,18 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
                     balance -= amount;
 
+                /*
+                 * سهام و آپشن
+                 *
+                 * BUY:
+                 * پول + کارمزد از حساب خارج می‌شود.
+                 *
+                 * SELL:
+                 * پول خالص وارد حساب می‌شود.
+                 *
+                 * برای Short Option نیز SELL است،
+                 * بنابراین پریمیوم خالص وارد حساب می‌شود.
+                 */
                 } else if ("BUY".equals(type)) {
 
                     balance -=
@@ -635,9 +1088,10 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return balance;
     }
 
-    /*
-     * پر کردن تاریخ شمسی برای تراکنش‌های قدیمی
-     */
+    // =========================================================
+    // تاریخ‌های قدیمی
+    // =========================================================
+
     private void fillOldPersianDates(
             SQLiteDatabase db) {
 
@@ -712,12 +1166,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     }
 
     // =========================================================
-    //                    BACKUP / RESTORE
+    // BACKUP
     // =========================================================
 
-    /*
-     * ساخت بک‌آپ کامل دیتابیس به صورت JSON
-     */
     public String exportBackupJson()
             throws Exception {
 
@@ -731,7 +1182,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
         backup.put(
                 "backup_version",
-                1
+                2
         );
 
         backup.put(
@@ -766,6 +1217,15 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                         cursor.getString(
                                 cursor.getColumnIndexOrThrow(
                                         "type"
+                                )
+                        )
+                );
+
+                item.put(
+                        "asset_type",
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow(
+                                        "asset_type"
                                 )
                         )
                 );
@@ -843,6 +1303,60 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 );
 
                 item.put(
+                        "underlying",
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow(
+                                        "underlying"
+                                )
+                        )
+                );
+
+                item.put(
+                        "option_type",
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow(
+                                        "option_type"
+                                )
+                        )
+                );
+
+                item.put(
+                        "strike_price",
+                        cursor.getDouble(
+                                cursor.getColumnIndexOrThrow(
+                                        "strike_price"
+                                )
+                        )
+                );
+
+                item.put(
+                        "expiry_date",
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow(
+                                        "expiry_date"
+                                )
+                        )
+                );
+
+                item.put(
+                        "contract_size",
+                        cursor.getDouble(
+                                cursor.getColumnIndexOrThrow(
+                                        "contract_size"
+                                )
+                        )
+                );
+
+                item.put(
+                        "position_type",
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow(
+                                        "position_type"
+                                )
+                        )
+                );
+
+                item.put(
                         "date",
                         cursor.getLong(
                                 cursor.getColumnIndexOrThrow(
@@ -876,15 +1390,10 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return backup.toString(2);
     }
 
-    /*
-     * بازیابی بک‌آپ JSON
-     *
-     * اطلاعات فعلی تراکنش‌ها جایگزین
-     * اطلاعات موجود در فایل بک‌آپ می‌شوند.
-     *
-     * عملیات کاملاً داخل Transaction انجام می‌شود
-     * تا در صورت خطا اطلاعات قبلی حفظ شود.
-     */
+    // =========================================================
+    // RESTORE
+    // =========================================================
+
     public void importBackupJson(
             String json) throws Exception {
 
@@ -918,7 +1427,12 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                         0
                 );
 
-        if (backupVersion != 1) {
+        /*
+         * نسخه 1 قدیمی و نسخه 2 جدید
+         * هر دو قابل بازیابی هستند.
+         */
+        if (backupVersion != 1 &&
+                backupVersion != 2) {
 
             throw new IllegalArgumentException(
                     "نسخه بک‌آپ پشتیبانی نمی‌شود."
@@ -944,18 +1458,12 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
         try {
 
-            /*
-             * حذف تراکنش‌های فعلی
-             */
             db.delete(
                     TABLE,
                     null,
                     null
             );
 
-            /*
-             * وارد کردن تراکنش‌های بک‌آپ
-             */
             for (int i = 0;
                     i < transactions.length();
                     i++) {
@@ -1000,6 +1508,18 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 values.put(
                         "type",
                         type
+                );
+
+                /*
+                 * بک‌آپ قدیمی فاقد asset_type است.
+                 * بنابراین آن را سهام در نظر می‌گیریم.
+                 */
+                values.put(
+                        "asset_type",
+                        item.optString(
+                                "asset_type",
+                                "STOCK"
+                        )
                 );
 
                 values.put(
@@ -1062,6 +1582,54 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                         "description",
                         item.optString(
                                 "description",
+                                ""
+                        )
+                );
+
+                values.put(
+                        "underlying",
+                        item.optString(
+                                "underlying",
+                                ""
+                        )
+                );
+
+                values.put(
+                        "option_type",
+                        item.optString(
+                                "option_type",
+                                ""
+                        )
+                );
+
+                values.put(
+                        "strike_price",
+                        item.optDouble(
+                                "strike_price",
+                                0
+                        )
+                );
+
+                values.put(
+                        "expiry_date",
+                        item.optString(
+                                "expiry_date",
+                                ""
+                        )
+                );
+
+                values.put(
+                        "contract_size",
+                        item.optDouble(
+                                "contract_size",
+                                0
+                        )
+                );
+
+                values.put(
+                        "position_type",
+                        item.optString(
+                                "position_type",
                                 ""
                         )
                 );
