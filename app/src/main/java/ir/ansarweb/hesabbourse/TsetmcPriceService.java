@@ -3,6 +3,7 @@ package ir.ansarweb.hesabbourse;
 import android.os.Handler;
 import android.os.Looper;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
@@ -15,8 +16,16 @@ import java.net.URLEncoder;
 public class TsetmcPriceService {
 
     public interface Callback {
-        void onSuccess(String symbol, double lastPrice, double closingPrice);
-        void onError(String symbol, String message);
+        void onSuccess(
+                String symbol,
+                double lastPrice,
+                double closingPrice
+        );
+
+        void onError(
+                String symbol,
+                String message
+        );
     }
 
     private static final String SEARCH_URL =
@@ -28,79 +37,131 @@ public class TsetmcPriceService {
     private final Handler mainHandler =
             new Handler(Looper.getMainLooper());
 
-    public void getPrice(final String symbol, final Callback callback) {
+    public void getPrice(
+            final String symbol,
+            final Callback callback
+    ) {
 
-        if (symbol == null || symbol.trim().isEmpty()) {
-            callback.onError(symbol, "نماد وارد نشده است");
+        if (symbol == null ||
+                symbol.trim().isEmpty()) {
+
+            callback.onError(
+                    symbol,
+                    "نماد وارد نشده است"
+            );
+
             return;
         }
 
-        final String cleanSymbol = symbol.trim();
+        final String cleanSymbol =
+                symbol.trim();
 
         new Thread(() -> {
 
             try {
 
-                // مرحله اول: پیدا کردن کد معاملاتی نماد
+                // -----------------------------
+                // 1. پیدا کردن کد معاملاتی نماد
+                // -----------------------------
+
                 String encodedSymbol =
-                        URLEncoder.encode(cleanSymbol, "UTF-8");
+                        URLEncoder.encode(
+                                cleanSymbol,
+                                "UTF-8"
+                        );
 
                 String searchResponse =
-                        request(SEARCH_URL + encodedSymbol);
+                        request(
+                                SEARCH_URL +
+                                encodedSymbol
+                        );
 
                 String insCode =
-                        findInsCode(searchResponse, cleanSymbol);
+                        findInsCode(
+                                searchResponse,
+                                cleanSymbol
+                        );
 
-                if (insCode == null || insCode.isEmpty()) {
+                if (insCode == null ||
+                        insCode.isEmpty()) {
+
                     postError(
                             callback,
                             cleanSymbol,
                             "کد معاملاتی نماد پیدا نشد"
                     );
+
                     return;
                 }
 
-                // مرحله دوم: دریافت قیمت
+                // -----------------------------
+                // 2. دریافت اطلاعات قیمت
+                // -----------------------------
+
                 String priceResponse =
-                        request(PRICE_URL + insCode);
+                        request(
+                                PRICE_URL +
+                                insCode
+                        );
 
                 JSONObject root =
-                        new JSONObject(priceResponse);
+                        new JSONObject(
+                                priceResponse
+                        );
 
                 JSONObject closingPriceInfo =
-                        root.optJSONObject("closingPriceInfo");
+                        root.optJSONObject(
+                                "closingPriceInfo"
+                        );
 
                 if (closingPriceInfo == null) {
+
                     postError(
                             callback,
                             cleanSymbol,
                             "اطلاعات قیمت دریافت نشد"
                     );
+
                     return;
                 }
 
+                // قیمت آخرین معامله
                 double lastPrice =
                         closingPriceInfo.optDouble(
-                                "pClosing",
+                                "pDrCotVal",
                                 0
                         );
 
+                // قیمت پایانی
                 double closingPrice =
                         closingPriceInfo.optDouble(
                                 "pClosing",
                                 0
                         );
 
+                // اگر آخرین معامله موجود نبود،
+                // قیمت پایانی را به عنوان جایگزین بگیر
                 if (lastPrice <= 0) {
                     lastPrice =
-                            closingPriceInfo.optDouble(
-                                    "pDrCotVal",
-                                    0
-                            );
+                            closingPrice;
                 }
 
-                final double finalLastPrice = lastPrice;
-                final double finalClosingPrice = closingPrice;
+                if (lastPrice <= 0) {
+
+                    postError(
+                            callback,
+                            cleanSymbol,
+                            "قیمت معتبر دریافت نشد"
+                    );
+
+                    return;
+                }
+
+                final double finalLastPrice =
+                        lastPrice;
+
+                final double finalClosingPrice =
+                        closingPrice;
 
                 mainHandler.post(() ->
                         callback.onSuccess(
@@ -112,32 +173,52 @@ public class TsetmcPriceService {
 
             } catch (Exception e) {
 
+                String message =
+                        e.getMessage();
+
+                if (message == null ||
+                        message.isEmpty()) {
+
+                    message =
+                            "خطا در دریافت اطلاعات بازار";
+                }
+
                 postError(
                         callback,
                         cleanSymbol,
-                        e.getMessage() == null
-                                ? "خطا در دریافت اطلاعات بازار"
-                                : e.getMessage()
+                        message
                 );
             }
 
         }).start();
     }
 
-    private String request(String address) throws Exception {
+    private String request(
+            String address
+    ) throws Exception {
 
-        URL url = new URL(address);
+        URL url =
+                new URL(address);
 
         HttpURLConnection connection =
-                (HttpURLConnection) url.openConnection();
+                (HttpURLConnection)
+                        url.openConnection();
 
         connection.setRequestMethod("GET");
-        connection.setConnectTimeout(10000);
-        connection.setReadTimeout(10000);
+
+        connection.setConnectTimeout(
+                10000
+        );
+
+        connection.setReadTimeout(
+                10000
+        );
+
         connection.setRequestProperty(
                 "User-Agent",
                 "Mozilla/5.0"
         );
+
         connection.setRequestProperty(
                 "Accept",
                 "application/json"
@@ -148,15 +229,22 @@ public class TsetmcPriceService {
 
         InputStream inputStream;
 
-        if (responseCode >= 200 && responseCode < 300) {
+        if (responseCode >= 200 &&
+                responseCode < 300) {
+
             inputStream =
                     connection.getInputStream();
+
         } else {
+
             inputStream =
                     connection.getErrorStream();
         }
 
         if (inputStream == null) {
+
+            connection.disconnect();
+
             throw new Exception(
                     "پاسخی از سرور دریافت نشد"
             );
@@ -175,16 +263,22 @@ public class TsetmcPriceService {
 
         String line;
 
-        while ((line = reader.readLine()) != null) {
+        while ((line =
+                reader.readLine()) != null) {
+
             result.append(line);
         }
 
         reader.close();
+
         connection.disconnect();
 
-        if (responseCode < 200 || responseCode >= 300) {
+        if (responseCode < 200 ||
+                responseCode >= 300) {
+
             throw new Exception(
-                    "خطای سرور: " + responseCode
+                    "خطای سرور: " +
+                    responseCode
             );
         }
 
@@ -205,7 +299,8 @@ public class TsetmcPriceService {
                 "instrument"
         };
 
-        for (String arrayName : possibleArrays) {
+        for (String arrayName :
+                possibleArrays) {
 
             if (!root.has(arrayName)) {
                 continue;
@@ -214,14 +309,16 @@ public class TsetmcPriceService {
             Object value =
                     root.get(arrayName);
 
-            if (!(value instanceof org.json.JSONArray)) {
+            if (!(value instanceof JSONArray)) {
                 continue;
             }
 
-            org.json.JSONArray array =
-                    (org.json.JSONArray) value;
+            JSONArray array =
+                    (JSONArray) value;
 
-            for (int i = 0; i < array.length(); i++) {
+            for (int i = 0;
+                 i < array.length();
+                 i++) {
 
                 JSONObject item =
                         array.optJSONObject(i);
@@ -237,6 +334,7 @@ public class TsetmcPriceService {
                         );
 
                 if (symbol.isEmpty()) {
+
                     symbol =
                             item.optString(
                                     "symbol",
@@ -251,6 +349,7 @@ public class TsetmcPriceService {
                         );
 
                 if (name.isEmpty()) {
+
                     name =
                             item.optString(
                                     "name",
@@ -258,8 +357,11 @@ public class TsetmcPriceService {
                             );
                 }
 
-                if (wantedSymbol.equalsIgnoreCase(symbol)
-                        || wantedSymbol.equalsIgnoreCase(name)) {
+                if (wantedSymbol
+                        .equalsIgnoreCase(symbol)
+                        ||
+                        wantedSymbol
+                                .equalsIgnoreCase(name)) {
 
                     String insCode =
                             item.optString(
@@ -268,6 +370,7 @@ public class TsetmcPriceService {
                             );
 
                     if (insCode.isEmpty()) {
+
                         insCode =
                                 item.optString(
                                         "instrumentID",
