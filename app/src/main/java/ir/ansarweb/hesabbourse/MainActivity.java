@@ -1920,7 +1920,7 @@ public class MainActivity extends Activity {
     box.addView(header);
 
     // =====================================================
-    // نمایش نمادها
+    // نمادها
     // =====================================================
 
     boolean found = false;
@@ -2128,7 +2128,8 @@ public class MainActivity extends Activity {
                         currentPositions =
                         calculatePositions();
 
-                int totalSymbols = 0;
+                final int[] totalSymbols =
+                        {0};
 
                 for (PortfolioEngine.Position p :
                         currentPositions.values()) {
@@ -2141,11 +2142,11 @@ public class MainActivity extends Activity {
                             &&
                             p.quantity > 0) {
 
-                        totalSymbols++;
+                        totalSymbols[0]++;
                     }
                 }
 
-                if (totalSymbols == 0) {
+                if (totalSymbols[0] == 0) {
 
                     status.setText(
                             "نمادی برای دریافت قیمت وجود ندارد."
@@ -2207,12 +2208,12 @@ public class MainActivity extends Activity {
                                             "✅ " +
                                             success[0] +
                                             " از " +
-                                            totalSymbols +
+                                            totalSymbols[0] +
                                             " نماد دریافت شد"
                                     );
 
                                     if (completed[0]
-                                            >= totalSymbols) {
+                                            >= totalSymbols[0]) {
 
                                         onlineButton
                                                 .setEnabled(true);
@@ -2242,7 +2243,7 @@ public class MainActivity extends Activity {
                                     );
 
                                     if (completed[0]
-                                            >= totalSymbols) {
+                                            >= totalSymbols[0]) {
 
                                         onlineButton
                                                 .setEnabled(true);
