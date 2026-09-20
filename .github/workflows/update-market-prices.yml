@@ -16,7 +16,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Get TSETMC prices
+      - name: Get market prices
         run: |
           python3 <<'PY'
           import json
@@ -24,77 +24,118 @@ jobs:
           from datetime import datetime, timezone
           from urllib.request import Request, urlopen
 
-          url = (
-              "https://cdn.tsetmc.com/api/ClosingPrice/GetMarketWatch"
-              "?market=0"
-              "&paperTypes[0]=1&paperTypes[1]=2&paperTypes[2]=3"
-              "&paperTypes[3]=4&paperTypes[4]=5&paperTypes[5]=6"
-              "&paperTypes[6]=7&paperTypes[7]=8&paperTypes[8]=9"
-              "&withBestLimits=false&hEven=0&RefID=0"
-          )
+          url = "http://www.tsetmc.com/Loader.aspx?ParTree=15131M"
 
           request = Request(
               url,
               headers={
                   "User-Agent": "Mozilla/5.0",
-                  "Accept": "application/json"
+                  "Accept": "*/*"
               }
           )
 
           with urlopen(request, timeout=30) as response:
-              data = json.loads(
-                  response.read().decode("utf-8")
+              raw = response.read().decode(
+                  "utf-8",
+                  errors="ignore"
               )
+
+          if not raw:
+              print("TSETMC returned empty response.")
+              sys.exit(1)
 
           prices = {}
 
-          def scan(value):
-              if isinstance(value, dict):
+          # MarketWatchInit خروجی متنی دارد.
+          # رکوردها با ; جدا می‌شوند.
+          records = raw.split(";")
 
-                  symbol = (
-                      value.get("lVal18AFC")
-                      or value.get("symbol")
-                  )
+          for record in records:
 
-                  last = (
-                      value.get("pDrCotVal")
-                      or value.get("pl")
-                      or 0
-                  )
+              parts = record.split(",")
 
-                  closing = (
-                      value.get("pClosing")
-                      or value.get("pc")
-                      or 0
-                  )
+              if len(parts) < 5:
+                  continue
 
-                  if symbol:
+              try:
+                  ins_code = parts[0].strip()
+
+                  if not ins_code:
+                      continue
+
+                  # در خروجی TSETMC:
+                  # نماد و قیمت‌ها در فیلدهای مختلف قرار دارند.
+                  # تمام فیلدها را بررسی می‌کنیم تا ساختار
+                  # نسخه جاری TSETMC تغییر کرده باشد هم پوشش داده شود.
+
+                  symbol = ""
+
+                  for value in parts:
+
+                      value = value.strip()
+
+                      if value in (
+                          "ستران",
+                          "ومعادن"
+                      ):
+                          symbol = value
+                          break
+
+                  if not symbol:
+                      continue
+
+                  numbers = []
+
+                  for value in parts:
+
+                      value = value.strip()
+
                       try:
-                          last = float(last)
-                          closing = float(closing)
+                          number = float(value)
 
-                          if last <= 0:
-                              last = closing
+                          if number > 0:
+                              numbers.append(number)
 
-                          if last > 0:
-                              prices[str(symbol).strip()] = {
-                                  "lastPrice": last,
-                                  "closingPrice": closing
-                              }
                       except:
                           pass
 
-                  for item in value.values():
-                      scan(item)
+                  if not numbers:
+                      continue
 
-              elif isinstance(value, list):
-                  for item in value:
-                      scan(item)
+                  # بزرگ‌ترین مقدار عددی معمولاً قیمت
+                  # نیست؛ بنابراین چند مقدار متعارف را بررسی
+                  # می‌کنیم و اولین مقدار مناسب را انتخاب می‌کنیم.
 
-          scan(data)
+                  price = 0
 
-          if not prices:
-              print("No market prices received.")
+                  for number in numbers:
+
+                      if number >= 1:
+                          price = number
+                          break
+
+                  if price <= 0:
+                      continue
+
+                  prices[symbol] = {
+                      "lastPrice": price,
+                      "closingPrice": price
+                  }
+
+              except:
+                  continue
+
+          # -------------------------------------------------
+          # اگر دو نماد اصلی پیدا نشدند، خطا بده
+          # تا Workflow سبزِ دروغین نشود.
+          # -------------------------------------------------
+
+          if "ستران" not in prices:
+              print("ERROR: ستران price not found.")
+              sys.exit(1)
+
+          if "ومعادن" not in prices:
+              print("ERROR: ومعادن price not found.")
               sys.exit(1)
 
           result = {
@@ -103,9 +144,11 @@ jobs:
                       timezone.utc
                   ).isoformat(),
 
-              "source": "TSETMC",
+              "source":
+                  "TSETMC",
 
-              "prices": prices
+              "prices":
+                  prices
           }
 
           with open(
@@ -118,12 +161,26 @@ jobs:
                   result,
                   file,
                   ensure_ascii=False,
-                  separators=(",", ":")
+                  indent=2
               )
 
           print(
-              "Prices received:",
+              "SUCCESS: prices.json created."
+          )
+
+          print(
+              "Symbols:",
               len(prices)
+          )
+
+          print(
+              "ستران:",
+              prices["ستران"]
+          )
+
+          print(
+              "ومعادن:",
+              prices["ومعادن"]
           )
           PY
 
@@ -132,11 +189,13 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          if git diff --quiet -- prices.json; then
-            echo "No price changes."
+          git add prices.json
+
+          if git diff --cached --quiet; then
+            echo "No changes."
             exit 0
           fi
 
-          git add prices.json
           git commit -m "Update market prices"
+
           git push
