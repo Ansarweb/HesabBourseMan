@@ -1798,137 +1798,6 @@ public class MainActivity extends Activity {
     // =========================================================
 
     private void showPortfolioSymbolsDialog(
-            String portfolioName) {
-
-        Map<String, PortfolioEngine.Position> positions =
-                calculatePositions();
-
-        LinearLayout box = new LinearLayout(this);
-        box.setOrientation(LinearLayout.VERTICAL);
-        box.setPadding(10, 10, 10, 10);
-
-        boolean found = false;
-
-        LinearLayout header = new LinearLayout(this);
-        header.setOrientation(LinearLayout.HORIZONTAL);
-
-        TextView hSymbol = new TextView(this);
-        hSymbol.setText("نماد");
-        hSymbol.setTextSize(14);
-        hSymbol.setPadding(8, 8, 8, 8);
-
-        TextView hValue = new TextView(this);
-        hValue.setText("ارزش");
-        hValue.setTextSize(14);
-        hValue.setGravity(android.view.Gravity.CENTER);
-        hValue.setPadding(8, 8, 8, 8);
-
-        TextView hPnl = new TextView(this);
-        hPnl.setText("سود/زیان");
-        hPnl.setTextSize(14);
-        hPnl.setGravity(android.view.Gravity.CENTER);
-        hPnl.setPadding(8, 8, 8, 8);
-
-        header.addView(
-                hSymbol,
-                new LinearLayout.LayoutParams(
-                        0,
-                        LinearLayout.LayoutParams.WRAP_CONTENT,
-                        0.28f
-                )
-        );
-
-        header.addView(
-                hValue,
-                new LinearLayout.LayoutParams(
-                        0,
-                        LinearLayout.LayoutParams.WRAP_CONTENT,
-                        0.42f
-                )
-        );
-
-        header.addView(
-                hPnl,
-                new LinearLayout.LayoutParams(
-                        0,
-                        LinearLayout.LayoutParams.WRAP_CONTENT,
-                        0.30f
-                )
-        );
-
-        box.addView(header);
-
-        for (PortfolioEngine.Position p :
-                positions.values()) {
-
-            if (!p.isStock()) {
-                continue;
-            }
-
-            if (!portfolioName.equals(p.portfolio)) {
-                continue;
-            }
-
-            if (p.quantity <= 0) {
-                continue;
-            }
-
-            found = true;
-
-            String symbol = p.symbol;
-
-            double currentPrice =
-                    getCurrentPrice(
-                            portfolioName,
-                            symbol
-                    );
-
-            double currentValue =
-                    currentPrice > 0
-                            ? p.quantity * currentPrice
-                            : 0;
-
-            double pnl =
-                    currentPrice > 0
-                            ? currentValue - p.cost
-                            : 0;
-
-            double pnlPercent =
-                    currentPrice > 0 &&
-                    p.cost > 0
-                            ? pnl / p.cost * 100.0
-                            : 0;
-
-            LinearLayout row =
-                    new LinearLayout(this);
-
-            row.setOrientation(
-                    LinearLayout.HORIZONTAL
-            );
-
-            row.setPadding(
-                    0, 8, 0, 8
-            );
-
-            TextView symbolText =
-                    new TextView(this);
-
-            symbolText.setText(
-                    safe(symbol)
-            );
-
-            symbolText.setTextSize(17);
-            symbolText.setGravity(
-                    android.view.Gravity.CENTER_VERTICAL
-            );
-
-            TextView valueText =
-                    new TextView(this);
-
-            if (currentPrice > 0) {
-
-                valueText.setText(
-private void showPortfolioSymbolsDialog(
         String portfolioName) {
 
     Map<String, PortfolioEngine.Position> positions =
@@ -2051,7 +1920,7 @@ private void showPortfolioSymbolsDialog(
     box.addView(header);
 
     // =====================================================
-    // نمادها
+    // نمایش نمادها
     // =====================================================
 
     boolean found = false;
@@ -2065,7 +1934,6 @@ private void showPortfolioSymbolsDialog(
 
         if (!portfolioName.equals(
                 p.portfolio)) {
-
             continue;
         }
 
@@ -2244,7 +2112,7 @@ private void showPortfolioSymbolsDialog(
     }
 
     // =====================================================
-    // دریافت قیمت آنلاین همه نمادها
+    // دریافت قیمت آنلاین
     // =====================================================
 
     onlineButton.setOnClickListener(
@@ -2306,7 +2174,6 @@ private void showPortfolioSymbolsDialog(
 
                     if (!portfolioName.equals(
                             p.portfolio)) {
-
                         continue;
                     }
 
@@ -2387,9 +2254,9 @@ private void showPortfolioSymbolsDialog(
                                                         "نتیجه دریافت قیمت"
                                                 )
                                                 .setMessage(
-                                                        "تعدادی از قیمت‌ها دریافت شد.\\n"
+                                                        "تعدادی از قیمت‌ها دریافت نشد.\n"
                                                         +
-                                                        "برای نمادهای ناموفق، قیمت قبلی حفظ شده است."
+                                                        "قیمت قبلی نمادهای ناموفق حفظ می‌شود."
                                                 )
                                                 .setPositiveButton(
                                                         "باشه",
@@ -2407,6 +2274,10 @@ private void showPortfolioSymbolsDialog(
                 }
             }
     );
+
+    // =====================================================
+    // نمایش دیالوگ
+    // =====================================================
 
     ScrollView scroll =
             new ScrollView(this);
