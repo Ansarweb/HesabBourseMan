@@ -1928,125 +1928,502 @@ public class MainActivity extends Activity {
             if (currentPrice > 0) {
 
                 valueText.setText(
-                        "ارزش: " +
-                        money(currentValue)
+private void showPortfolioSymbolsDialog(
+        String portfolioName) {
+
+    Map<String, PortfolioEngine.Position> positions =
+            calculatePositions();
+
+    LinearLayout box =
+            new LinearLayout(this);
+
+    box.setOrientation(
+            LinearLayout.VERTICAL
+    );
+
+    box.setPadding(
+            10, 10, 10, 10
+    );
+
+    // =====================================================
+    // دکمه دریافت قیمت آنلاین
+    // =====================================================
+
+    Button onlineButton =
+            new Button(this);
+
+    onlineButton.setText(
+            "🌐 به‌روزرسانی قیمت آنلاین"
+    );
+
+    onlineButton.setTextSize(16);
+
+    box.addView(
+            onlineButton,
+            new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+    );
+
+    TextView status =
+            new TextView(this);
+
+    status.setText(
+            "برای دریافت قیمت لحظه‌ای روی دکمه بالا بزنید."
+    );
+
+    status.setTextSize(14);
+
+    status.setPadding(
+            8, 5, 8, 12
+    );
+
+    box.addView(status);
+
+    // =====================================================
+    // سرستون‌ها
+    // =====================================================
+
+    LinearLayout header =
+            new LinearLayout(this);
+
+    header.setOrientation(
+            LinearLayout.HORIZONTAL
+    );
+
+    TextView hSymbol =
+            new TextView(this);
+
+    hSymbol.setText("نماد");
+    hSymbol.setTextSize(14);
+    hSymbol.setPadding(8, 8, 8, 8);
+
+    TextView hValue =
+            new TextView(this);
+
+    hValue.setText("ارزش");
+    hValue.setTextSize(14);
+    hValue.setGravity(
+            android.view.Gravity.CENTER
+    );
+
+    hValue.setPadding(8, 8, 8, 8);
+
+    TextView hPnl =
+            new TextView(this);
+
+    hPnl.setText("سود/زیان");
+    hPnl.setTextSize(14);
+    hPnl.setGravity(
+            android.view.Gravity.CENTER
+    );
+
+    hPnl.setPadding(8, 8, 8, 8);
+
+    header.addView(
+            hSymbol,
+            new LinearLayout.LayoutParams(
+                    0,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    0.28f
+            )
+    );
+
+    header.addView(
+            hValue,
+            new LinearLayout.LayoutParams(
+                    0,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    0.42f
+            )
+    );
+
+    header.addView(
+            hPnl,
+            new LinearLayout.LayoutParams(
+                    0,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    0.30f
+            )
+    );
+
+    box.addView(header);
+
+    // =====================================================
+    // نمادها
+    // =====================================================
+
+    boolean found = false;
+
+    for (PortfolioEngine.Position p :
+            positions.values()) {
+
+        if (!p.isStock()) {
+            continue;
+        }
+
+        if (!portfolioName.equals(
+                p.portfolio)) {
+
+            continue;
+        }
+
+        if (p.quantity <= 0) {
+            continue;
+        }
+
+        found = true;
+
+        final String symbol =
+                p.symbol;
+
+        double currentPrice =
+                getCurrentPrice(
+                        portfolioName,
+                        symbol
                 );
 
-            } else {
+        double currentValue =
+                currentPrice > 0
+                        ? p.quantity * currentPrice
+                        : 0;
 
-                valueText.setText(
-                        "ارزش: —"
-                );
-            }
+        double pnl =
+                currentPrice > 0
+                        ? currentValue - p.cost
+                        : 0;
 
-            valueText.setTextSize(14);
-            valueText.setGravity(
-                    android.view.Gravity.CENTER
+        double pnlPercent =
+                currentPrice > 0 &&
+                p.cost > 0
+                        ? pnl / p.cost * 100.0
+                        : 0;
+
+        LinearLayout row =
+                new LinearLayout(this);
+
+        row.setOrientation(
+                LinearLayout.HORIZONTAL
+        );
+
+        row.setPadding(
+                0, 8, 0, 8
+        );
+
+        TextView symbolText =
+                new TextView(this);
+
+        symbolText.setText(
+                safe(symbol)
+        );
+
+        symbolText.setTextSize(17);
+
+        symbolText.setGravity(
+                android.view.Gravity.CENTER_VERTICAL
+        );
+
+        TextView valueText =
+                new TextView(this);
+
+        if (currentPrice > 0) {
+
+            valueText.setText(
+                    "ارزش: " +
+                    money(currentValue)
             );
 
-            TextView pnlText =
-                    new TextView(this);
+        } else {
 
-            if (currentPrice > 0) {
-
-                String prefix =
-                        pnlPercent >= 0
-                                ? "سود: "
-                                : "زیان: ";
-
-                pnlText.setText(
-                        prefix +
-                        formatNumber(
-                                Math.abs(pnlPercent)
-                        ) +
-                        "%"
-                );
-
-            } else {
-
-                pnlText.setText(
-                        "—"
-                );
-            }
-
-            pnlText.setTextSize(14);
-            pnlText.setGravity(
-                    android.view.Gravity.CENTER
-            );
-
-            row.addView(
-                    symbolText,
-                    new LinearLayout.LayoutParams(
-                            0,
-                            70,
-                            0.28f
-                    )
-            );
-
-            row.addView(
-                    valueText,
-                    new LinearLayout.LayoutParams(
-                            0,
-                            70,
-                            0.42f
-                    )
-            );
-
-            row.addView(
-                    pnlText,
-                    new LinearLayout.LayoutParams(
-                            0,
-                            70,
-                            0.30f
-                    )
-            );
-
-            row.setClickable(true);
-
-            row.setOnClickListener(
-                    v ->
-                            showSymbolTransactionsDialog(
-                                    portfolioName,
-                                    symbol
-                            )
-            );
-
-            box.addView(row);
-
-            View line = new View(this);
-
-            box.addView(
-                    line,
-                    new LinearLayout.LayoutParams(
-                            LinearLayout.LayoutParams.MATCH_PARENT,
-                            1
-                    )
+            valueText.setText(
+                    "ارزش: —"
             );
         }
 
-        if (!found) {
+        valueText.setTextSize(14);
 
-            TextView empty = new TextView(this);
+        valueText.setGravity(
+                android.view.Gravity.CENTER
+        );
 
-            empty.setText(
-                    "سهم فعالی در این سبد وجود ندارد."
+        TextView pnlText =
+                new TextView(this);
+
+        if (currentPrice > 0) {
+
+            String prefix =
+                    pnlPercent >= 0
+                            ? "سود: "
+                            : "زیان: ";
+
+            pnlText.setText(
+                    prefix +
+                    formatNumber(
+                            Math.abs(pnlPercent)
+                    ) +
+                    "%"
             );
 
-            empty.setTextSize(17);
+        } else {
 
-            box.addView(empty);
+            pnlText.setText(
+                    "—"
+            );
         }
 
-        ScrollView scroll = new ScrollView(this);
-        scroll.addView(box);
+        pnlText.setTextSize(14);
 
-        new AlertDialog.Builder(this)
-                .setTitle("📁 " + portfolioName)
-                .setView(scroll)
-                .setPositiveButton("بستن", null)
-                .show();
+        pnlText.setGravity(
+                android.view.Gravity.CENTER
+        );
+
+        row.addView(
+                symbolText,
+                new LinearLayout.LayoutParams(
+                        0,
+                        70,
+                        0.28f
+                )
+        );
+
+        row.addView(
+                valueText,
+                new LinearLayout.LayoutParams(
+                        0,
+                        70,
+                        0.42f
+                )
+        );
+
+        row.addView(
+                pnlText,
+                new LinearLayout.LayoutParams(
+                        0,
+                        70,
+                        0.30f
+                )
+        );
+
+        row.setClickable(true);
+
+        row.setOnClickListener(
+                v ->
+                        showSymbolTransactionsDialog(
+                                portfolioName,
+                                symbol
+                        )
+        );
+
+        box.addView(row);
+
+        View line =
+                new View(this);
+
+        box.addView(
+                line,
+                new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        1
+                )
+        );
     }
 
+    if (!found) {
+
+        TextView empty =
+                new TextView(this);
+
+        empty.setText(
+                "سهم فعالی در این سبد وجود ندارد."
+        );
+
+        empty.setTextSize(17);
+
+        box.addView(empty);
+    }
+
+    // =====================================================
+    // دریافت قیمت آنلاین همه نمادها
+    // =====================================================
+
+    onlineButton.setOnClickListener(
+            v -> {
+
+                onlineButton.setEnabled(false);
+
+                status.setText(
+                        "⏳ در حال دریافت قیمت‌ها..."
+                );
+
+                Map<String, PortfolioEngine.Position>
+                        currentPositions =
+                        calculatePositions();
+
+                int totalSymbols = 0;
+
+                for (PortfolioEngine.Position p :
+                        currentPositions.values()) {
+
+                    if (p.isStock()
+                            &&
+                            portfolioName.equals(
+                                    p.portfolio
+                            )
+                            &&
+                            p.quantity > 0) {
+
+                        totalSymbols++;
+                    }
+                }
+
+                if (totalSymbols == 0) {
+
+                    status.setText(
+                            "نمادی برای دریافت قیمت وجود ندارد."
+                    );
+
+                    onlineButton.setEnabled(true);
+
+                    return;
+                }
+
+                final int[] completed =
+                        {0};
+
+                final int[] success =
+                        {0};
+
+                TsetmcPriceService service =
+                        new TsetmcPriceService();
+
+                for (PortfolioEngine.Position p :
+                        currentPositions.values()) {
+
+                    if (!p.isStock()) {
+                        continue;
+                    }
+
+                    if (!portfolioName.equals(
+                            p.portfolio)) {
+
+                        continue;
+                    }
+
+                    if (p.quantity <= 0) {
+                        continue;
+                    }
+
+                    final String symbol =
+                            p.symbol;
+
+                    service.getPrice(
+                            symbol,
+                            new TsetmcPriceService.Callback() {
+
+                                @Override
+                                public void onSuccess(
+                                        String symbol,
+                                        double lastPrice,
+                                        double closingPrice) {
+
+                                    saveCurrentPrice(
+                                            portfolioName,
+                                            symbol,
+                                            lastPrice
+                                    );
+
+                                    completed[0]++;
+                                    success[0]++;
+
+                                    status.setText(
+                                            "✅ " +
+                                            success[0] +
+                                            " از " +
+                                            totalSymbols +
+                                            " نماد دریافت شد"
+                                    );
+
+                                    if (completed[0]
+                                            >= totalSymbols) {
+
+                                        onlineButton
+                                                .setEnabled(true);
+
+                                        status.setText(
+                                                "✅ قیمت‌ها به‌روزرسانی شد"
+                                        );
+
+                                        showPortfolioSymbolsDialog(
+                                                portfolioName
+                                        );
+                                    }
+                                }
+
+                                @Override
+                                public void onError(
+                                        String symbol,
+                                        String message) {
+
+                                    completed[0]++;
+
+                                    status.setText(
+                                            "⚠️ " +
+                                            symbol +
+                                            ": " +
+                                            message
+                                    );
+
+                                    if (completed[0]
+                                            >= totalSymbols) {
+
+                                        onlineButton
+                                                .setEnabled(true);
+
+                                        new AlertDialog.Builder(
+                                                MainActivity.this
+                                        )
+                                                .setTitle(
+                                                        "نتیجه دریافت قیمت"
+                                                )
+                                                .setMessage(
+                                                        "تعدادی از قیمت‌ها دریافت شد.\\n"
+                                                        +
+                                                        "برای نمادهای ناموفق، قیمت قبلی حفظ شده است."
+                                                )
+                                                .setPositiveButton(
+                                                        "باشه",
+                                                        null
+                                                )
+                                                .show();
+
+                                        showPortfolioSymbolsDialog(
+                                                portfolioName
+                                        );
+                                    }
+                                }
+                            }
+                    );
+                }
+            }
+    );
+
+    ScrollView scroll =
+            new ScrollView(this);
+
+    scroll.addView(box);
+
+    new AlertDialog.Builder(this)
+            .setTitle(
+                    "📁 " + portfolioName
+            )
+            .setView(scroll)
+            .setPositiveButton(
+                    "بستن",
+                    null
+            )
+            .show();
+}
     // =========================================================
     // CURRENT PRICE
     // =========================================================
