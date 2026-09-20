@@ -2,6 +2,9 @@
 
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- دسترسی به اینترنت برای دریافت قیمت آنلاین TSETMC -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <!-- اجازه استفاده از حسگر اثر انگشت -->
     <uses-permission android:name="android.permission.USE_FINGERPRINT" />
 
