@@ -2202,6 +2202,17 @@ public class MainActivity extends Activity {
                                             symbol,
                                             lastPrice
                                     );
+                                    saveYesterdayPrice(
+        portfolioName,
+        symbol,
+        yesterdayPrice
+);
+
+saveDailyChangePercent(
+        portfolioName,
+        symbol,
+        dailyChangePercent
+);
 
                                     saveDailyChangePercent(
                                             portfolioName,
