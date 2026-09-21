@@ -2513,9 +2513,70 @@ if (savedPrice > 0) {
                 makeSpace(8)
         );
 
-        box.addView(
-                currentPrice
-        );
+        // =====================================================
+// قیمت فعلی + درصد تغییر روزانه
+// =====================================================
+
+LinearLayout priceRow =
+        new LinearLayout(this);
+
+priceRow.setOrientation(
+        LinearLayout.HORIZONTAL
+);
+
+priceRow.setGravity(
+        android.view.Gravity.CENTER_VERTICAL
+);
+
+TextView dailyChangeText =
+        new TextView(this);
+
+if (savedPrice > 0) {
+
+    String sign =
+            dailyChange > 0
+                    ? "+"
+                    : "";
+
+    dailyChangeText.setText(
+            "روزانه: " +
+            sign +
+            formatNumber(dailyChange) +
+            "%"
+    );
+
+} else {
+
+    dailyChangeText.setText(
+            "روزانه: —"
+    );
+}
+
+dailyChangeText.setTextSize(16);
+
+dailyChangeText.setGravity(
+        android.view.Gravity.CENTER
+);
+
+priceRow.addView(
+        currentPrice,
+        new LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                0.60f
+        )
+);
+
+priceRow.addView(
+        dailyChangeText,
+        new LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                0.40f
+        )
+);
+
+box.addView(priceRow);
 
         box.addView(
                 currentValueText
