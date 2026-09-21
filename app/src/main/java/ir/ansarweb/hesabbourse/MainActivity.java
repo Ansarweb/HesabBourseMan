@@ -2663,6 +2663,30 @@ saveDailyChangePercent(
                 )
                 .apply();
     }
+    private void saveYesterdayPrice(
+        String portfolio,
+        String symbol,
+        double price) {
+
+    SharedPreferences preferences =
+            getSharedPreferences(
+                    "current_prices",
+                    MODE_PRIVATE
+            );
+
+    String key =
+            portfolio +
+            "|" +
+            symbol +
+            "|yesterday";
+
+    preferences.edit()
+            .putString(
+                    key,
+                    Double.toString(price)
+            )
+            .apply();
+}
     private void saveDailyChangePercent(
         String portfolio,
         String symbol,
