@@ -20,7 +20,9 @@ public class TsetmcPriceService {
         void onSuccess(
                 String symbol,
                 double lastPrice,
-                double closingPrice
+                double closingPrice,
+                double yesterdayPrice,
+                double dailyChangePercent
         );
 
         void onError(
@@ -62,29 +64,17 @@ public class TsetmcPriceService {
 
             try {
 
-                // =====================================================
-                // مرحله ۱: پیدا کردن InsCode
-                // =====================================================
-
                 String encodedSymbol =
                         URLEncoder.encode(
                                 cleanSymbol,
                                 "UTF-8"
                         );
 
-                String searchUrl =
-                        SEARCH_URL + encodedSymbol;
-
                 String searchResponse =
-                        request(searchUrl);
-
-                if (searchResponse == null ||
-                        searchResponse.trim().isEmpty()) {
-
-                    throw new Exception(
-                            "پاسخ جستجوی TSETMC خالی است"
-                    );
-                }
+                        request(
+                                SEARCH_URL +
+                                encodedSymbol
+                        );
 
                 String insCode =
                         findInsCode(
@@ -102,23 +92,11 @@ public class TsetmcPriceService {
                     );
                 }
 
-                // =====================================================
-                // مرحله ۲: دریافت قیمت
-                // =====================================================
-
-                String priceUrl =
-                        PRICE_URL + insCode;
-
                 String priceResponse =
-                        request(priceUrl);
-
-                if (priceResponse == null ||
-                        priceResponse.trim().isEmpty()) {
-
-                    throw new Exception(
-                            "پاسخ قیمت TSETMC خالی است"
-                    );
-                }
+                        request(
+                                PRICE_URL +
+                                insCode
+                        );
 
                 JSONObject root =
                         new JSONObject(
@@ -133,13 +111,9 @@ public class TsetmcPriceService {
                 if (info == null) {
 
                     throw new Exception(
-                            "بخش closingPriceInfo در پاسخ TSETMC وجود ندارد"
+                            "اطلاعات قیمت TSETMC دریافت نشد"
                     );
                 }
-
-                // =====================================================
-                // آخرین قیمت
-                // =====================================================
 
                 double lastPrice =
                         info.optDouble(
@@ -147,18 +121,22 @@ public class TsetmcPriceService {
                                 0
                         );
 
-                // =====================================================
-                // قیمت پایانی
-                // =====================================================
-
                 double closingPrice =
                         info.optDouble(
                                 "pClosing",
                                 0
                         );
 
-                // اگر آخرین معامله صفر بود،
-                // قیمت پایانی را استفاده کن.
+                double yesterdayPrice =
+                        info.optDouble(
+                                "priceYesterday",
+                                0
+                        );
+
+                /*
+                 * اگر آخرین معامله معتبر نبود،
+                 * قیمت پایانی را استفاده می‌کنیم.
+                 */
 
                 if (lastPrice <= 0 &&
                         closingPrice > 0) {
@@ -174,15 +152,40 @@ public class TsetmcPriceService {
                     );
                 }
 
+                /*
+                 * درصد تغییر روزانه:
+                 *
+                 * (آخرین قیمت - قیمت دیروز)
+                 * / قیمت دیروز × 100
+                 */
+
+                double dailyChangePercent = 0;
+
+                if (yesterdayPrice > 0) {
+
+                    dailyChangePercent =
+                            (
+                                    (
+                                            lastPrice -
+                                            yesterdayPrice
+                                    )
+                                    /
+                                    yesterdayPrice
+                            )
+                            * 100.0;
+                }
+
                 final double finalLastPrice =
                         lastPrice;
 
                 final double finalClosingPrice =
                         closingPrice;
 
-                // =====================================================
-                // ارسال نتیجه به UI
-                // =====================================================
+                final double finalYesterdayPrice =
+                        yesterdayPrice;
+
+                final double finalDailyChangePercent =
+                        dailyChangePercent;
 
                 mainHandler.post(() -> {
 
@@ -191,7 +194,9 @@ public class TsetmcPriceService {
                         callback.onSuccess(
                                 symbol.trim(),
                                 finalLastPrice,
-                                finalClosingPrice
+                                finalClosingPrice,
+                                finalYesterdayPrice,
+                                finalDailyChangePercent
                         );
                     }
 
@@ -210,22 +215,15 @@ public class TsetmcPriceService {
                                     .getSimpleName();
                 }
 
-                final String finalMessage =
-                        "TSETMC: " + message;
-
                 postError(
                         callback,
                         symbol,
-                        finalMessage
+                        "TSETMC: " + message
                 );
             }
 
         }).start();
     }
-
-    // =========================================================
-    // HTTP REQUEST
-    // =========================================================
 
     private String request(
             String address
@@ -387,24 +385,6 @@ public class TsetmcPriceService {
 
             return result.toString();
 
-        } catch (Exception e) {
-
-            String message =
-                    e.getMessage();
-
-            if (message == null ||
-                    message.isEmpty()) {
-
-                message =
-                        e.getClass()
-                                .getSimpleName();
-            }
-
-            throw new Exception(
-                    message,
-                    e
-            );
-
         } finally {
 
             if (reader != null) {
@@ -425,10 +405,6 @@ public class TsetmcPriceService {
         }
     }
 
-    // =========================================================
-    // FIND INSCODE
-    // =========================================================
-
     private String findInsCode(
             String response,
             String wantedSymbol
@@ -445,7 +421,7 @@ public class TsetmcPriceService {
         if (array == null) {
 
             throw new Exception(
-                    "instrumentSearch در پاسخ TSETMC پیدا نشد"
+                    "instrumentSearch پیدا نشد"
             );
         }
 
@@ -453,11 +429,6 @@ public class TsetmcPriceService {
                 normalizeSymbol(
                         wantedSymbol
                 );
-
-        // =====================================================
-        // اول تطبیق دقیق نماد
-        // و حذف flow=3
-        // =====================================================
 
         for (int i = 0;
              i < array.length();
@@ -499,10 +470,6 @@ public class TsetmcPriceService {
             }
         }
 
-        // =====================================================
-        // اگر پیدا نشد، تطبیق دقیق بدون محدودیت flow
-        // =====================================================
-
         for (int i = 0;
              i < array.length();
              i++) {
@@ -539,10 +506,6 @@ public class TsetmcPriceService {
         return null;
     }
 
-    // =========================================================
-    // NORMALIZE SYMBOL
-    // =========================================================
-
     private String normalizeSymbol(
             String value
     ) {
@@ -553,40 +516,15 @@ public class TsetmcPriceService {
 
         return value
                 .trim()
-                .replace(
-                        "ي",
-                        "ی"
-                )
-                .replace(
-                        "ى",
-                        "ی"
-                )
-                .replace(
-                        "ك",
-                        "ک"
-                )
-                .replace(
-                        "ة",
-                        "ه"
-                )
-                .replace(
-                        "ۀ",
-                        "ه"
-                )
-                .replace(
-                        "‌",
-                        ""
-                )
-                .replace(
-                        " ",
-                        ""
-                )
+                .replace("ي", "ی")
+                .replace("ى", "ی")
+                .replace("ك", "ک")
+                .replace("ة", "ه")
+                .replace("ۀ", "ه")
+                .replace("‌", "")
+                .replace(" ", "")
                 .toUpperCase();
     }
-
-    // =========================================================
-    // ERROR
-    // =========================================================
 
     private void postError(
             Callback callback,
