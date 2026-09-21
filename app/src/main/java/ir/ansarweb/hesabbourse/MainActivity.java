@@ -1734,64 +1734,358 @@ public class MainActivity extends Activity {
 
     private void showPortfolioDialog() {
 
-        Map<String, PortfolioEngine.Position> positions =
-                calculatePositions();
+    Map<String, PortfolioEngine.Position> positions =
+            calculatePositions();
 
-        LinearLayout box = new LinearLayout(this);
-        box.setOrientation(LinearLayout.VERTICAL);
-        box.setPadding(20, 10, 20, 10);
+    LinearLayout box =
+            new LinearLayout(this);
 
-        Map<String, Boolean> portfolios =
-                new LinkedHashMap<>();
+    box.setOrientation(
+            LinearLayout.VERTICAL
+    );
 
-        for (PortfolioEngine.Position p :
-                positions.values()) {
+    box.setPadding(
+            20, 10, 20, 10
+    );
 
-            if (p.isStock() && p.quantity > 0) {
+    // =====================================================
+    // جمع‌آوری نام تمام سبدها
+    // =====================================================
 
-                portfolios.put(
-                        p.portfolio,
-                        true
-                );
+    Map<String, Boolean> portfolios =
+            new LinkedHashMap<>();
+
+    // سبدهایی که سهم دارند
+    for (PortfolioEngine.Position p :
+            positions.values()) {
+
+        if (p.isStock()) {
+
+            portfolios.put(
+                    p.portfolio,
+                    true
+            );
+        }
+    }
+
+    // سبدهایی که فقط گردش نقدی دارند
+    Cursor transactionCursor =
+            db.getAllTransactions();
+
+    try {
+
+        while (transactionCursor.moveToNext()) {
+
+            int portfolioIndex =
+                    transactionCursor.getColumnIndex(
+                            "portfolio"
+                    );
+
+            if (portfolioIndex >= 0) {
+
+                String portfolio =
+                        transactionCursor.getString(
+                                portfolioIndex
+                        );
+
+                if (portfolio != null &&
+                        !portfolio.trim().isEmpty()) {
+
+                    portfolios.put(
+                            portfolio,
+                            true
+                    );
+                }
             }
         }
 
-        if (portfolios.isEmpty()) {
+    } finally {
 
-            TextView empty = new TextView(this);
+        transactionCursor.close();
+    }
 
-            empty.setText(
-                    "در حال حاضر سهم فعالی در سبدها وجود ندارد."
+    // =====================================================
+    // نمایش سبدها
+    // =====================================================
+
+    if (portfolios.isEmpty()) {
+
+        TextView empty =
+                new TextView(this);
+
+        empty.setText(
+                "در حال حاضر سبدی ثبت نشده است."
+        );
+
+        empty.setTextSize(17);
+
+        box.addView(empty);
+
+    } else {
+
+        for (String portfolio :
+                portfolios.keySet()) {
+
+            // -------------------------------------------------
+            // موجودی نقد
+            // -------------------------------------------------
+
+            double cash =
+                    db.getCashBalance(
+                            portfolio
+                    );
+
+            // -------------------------------------------------
+            // ارزش فعلی سهام
+            // -------------------------------------------------
+
+            double stockValue =
+                    0;
+
+            // ارزش سهام در پایان روز قبل
+            double yesterdayStockValue =
+                    0;
+
+            boolean yesterdayDataComplete =
+                    true;
+
+            boolean hasStock =
+                    false;
+
+            for (PortfolioEngine.Position p :
+                    positions.values()) {
+
+                if (!p.isStock()) {
+                    continue;
+                }
+
+                if (!portfolio.equals(
+                        p.portfolio
+                )) {
+                    continue;
+                }
+
+                if (p.quantity <= 0) {
+                    continue;
+                }
+
+                hasStock = true;
+
+                double currentPrice =
+                        getCurrentPrice(
+                                portfolio,
+                                p.symbol
+                        );
+
+                if (currentPrice > 0) {
+
+                    stockValue +=
+                            p.quantity *
+                            currentPrice;
+
+                }
+
+                // ---------------------------------------------
+                // قیمت پایان روز قبل
+                // ---------------------------------------------
+
+                SharedPreferences preferences =
+                        getSharedPreferences(
+                                "current_prices",
+                                MODE_PRIVATE
+                        );
+
+                String yesterdayKey =
+                        portfolio +
+                        "|" +
+                        p.symbol +
+                        "|yesterday";
+
+                String yesterdayValue =
+                        preferences.getString(
+                                yesterdayKey,
+                                ""
+                        );
+
+                if (!yesterdayValue.isEmpty()) {
+
+                    try {
+
+                        double yesterdayPrice =
+                                Double.parseDouble(
+                                        yesterdayValue
+                                );
+
+                        if (yesterdayPrice > 0) {
+
+                            yesterdayStockValue +=
+                                    p.quantity *
+                                    yesterdayPrice;
+
+                        } else {
+
+                            yesterdayDataComplete =
+                                    false;
+                        }
+
+                    } catch (Exception e) {
+
+                        yesterdayDataComplete =
+                                false;
+                    }
+
+                } else {
+
+                    yesterdayDataComplete =
+                            false;
+                }
+            }
+
+            // -------------------------------------------------
+            // ارزش کل سبد
+            // -------------------------------------------------
+
+            double totalValue =
+                    stockValue +
+                    cash;
+
+            double yesterdayTotalValue =
+                    yesterdayStockValue +
+                    cash;
+
+            // -------------------------------------------------
+            // درصد تغییر روزانه کل سبد
+            // -------------------------------------------------
+
+            double portfolioDailyPercent =
+                    0;
+
+            boolean hasDailyPercent =
+                    hasStock &&
+                    yesterdayDataComplete &&
+                    yesterdayTotalValue > 0;
+
+            if (hasDailyPercent) {
+
+                portfolioDailyPercent =
+                        (
+                                (
+                                        totalValue -
+                                        yesterdayTotalValue
+                                )
+                                /
+                                yesterdayTotalValue
+                        )
+                        * 100.0;
+            }
+
+            // =================================================
+            // دکمه سبد
+            // =================================================
+
+            Button b =
+                    new Button(this);
+
+            StringBuilder title =
+                    new StringBuilder();
+
+            title.append(
+                    "📁 "
             );
 
-            box.addView(empty);
+            title.append(
+                    portfolio
+            );
 
-        } else {
+            title.append(
+                    "\nارزش کل: "
+            );
 
-            for (String portfolio :
-                    portfolios.keySet()) {
+            title.append(
+                    money(totalValue)
+            );
 
-                Button b = new Button(this);
+            title.append(
+                    "   |   نقد: "
+            );
 
-                b.setText("📁 " + portfolio);
+            title.append(
+                    money(cash)
+            );
 
-                b.setOnClickListener(
-                        v ->
-                                showPortfolioSymbolsDialog(
-                                        portfolio
-                                )
+            if (hasDailyPercent) {
+
+                String sign =
+                        portfolioDailyPercent >= 0
+                                ? "+"
+                                : "";
+
+                title.append(
+                        "\nامروز: "
                 );
 
-                box.addView(b);
-            }
-        }
+                title.append(
+                        sign
+                );
 
-        new AlertDialog.Builder(this)
-                .setTitle("📊 وضعیت سبدها")
-                .setView(box)
-                .setPositiveButton("بستن", null)
-                .show();
+                title.append(
+                        formatNumber(
+                                portfolioDailyPercent
+                        )
+                );
+
+                title.append(
+                        "%"
+                );
+
+            } else if (hasStock) {
+
+                title.append(
+                        "\nامروز: —"
+                );
+            }
+
+            b.setText(
+                    title.toString()
+            );
+
+            b.setTextSize(15);
+
+            b.setGravity(
+                    android.view.Gravity.RIGHT |
+                    android.view.Gravity.CENTER_VERTICAL
+            );
+
+            b.setPadding(
+                    20, 15, 20, 15
+            );
+
+            b.setOnClickListener(
+                    v ->
+                            showPortfolioSymbolsDialog(
+                                    portfolio
+                            )
+            );
+
+            box.addView(b);
+        }
     }
+
+    // =====================================================
+    // نمایش دیالوگ
+    // =====================================================
+
+    new AlertDialog.Builder(this)
+            .setTitle(
+                    "📊 وضعیت سبدها"
+            )
+            .setView(box)
+            .setPositiveButton(
+                    "بستن",
+                    null
+            )
+            .show();
+}
 
     // =========================================================
     // PORTFOLIO SYMBOL LIST
