@@ -2464,18 +2464,47 @@ public class MainActivity extends Activity {
                         "قیمت فعلی هر سهم"
                 );
 
-        double savedPrice =
-                getCurrentPrice(
-                        portfolioName,
-                        symbolName
-                );
+        
+double savedPrice =
+        getCurrentPrice(
+                portfolioName,
+                symbolName
+        );
 
-        if (savedPrice > 0) {
-            currentPrice.setText(
-                    formatNumber(savedPrice)
-            );
-        }
+SharedPreferences pricePreferences =
+        getSharedPreferences(
+                "current_prices",
+                MODE_PRIVATE
+        );
 
+String dailyKey =
+        portfolioName +
+        "|" +
+        symbolName +
+        "|daily_change";
+
+String dailyValue =
+        pricePreferences.getString(
+                dailyKey,
+                ""
+        );
+
+double dailyChange = 0;
+
+if (!dailyValue.isEmpty()) {
+    try {
+        dailyChange =
+                Double.parseDouble(dailyValue);
+    } catch (Exception ignored) {
+        dailyChange = 0;
+    }
+}
+
+if (savedPrice > 0) {
+    currentPrice.setText(
+            formatNumber(savedPrice)
+    );
+}
         box.addView(quantityText);
         box.addView(averageText);
         box.addView(costText);
