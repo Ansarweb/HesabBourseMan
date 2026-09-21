@@ -2193,12 +2193,20 @@ public class MainActivity extends Activity {
                                 public void onSuccess(
                                         String symbol,
                                         double lastPrice,
-                                        double closingPrice) {
+                                        double closingPrice,
+                                        double yesterdayPrice,
+                                        double dailyChangePercent) {
 
                                     saveCurrentPrice(
                                             portfolioName,
                                             symbol,
                                             lastPrice
+                                    );
+
+                                    saveDailyChangePercent(
+                                            portfolioName,
+                                            symbol,
+                                            dailyChangePercent
                                     );
 
                                     completed[0]++;
