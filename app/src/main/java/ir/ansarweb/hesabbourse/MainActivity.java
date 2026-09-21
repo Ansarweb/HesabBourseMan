@@ -2358,6 +2358,30 @@ public class MainActivity extends Activity {
                 )
                 .apply();
     }
+    private void saveDailyChangePercent(
+        String portfolio,
+        String symbol,
+        double percent) {
+
+    SharedPreferences preferences =
+            getSharedPreferences(
+                    "current_prices",
+                    MODE_PRIVATE
+            );
+
+    String key =
+            portfolio +
+            "|" +
+            symbol +
+            "|daily_change";
+
+    preferences.edit()
+            .putString(
+                    key,
+                    Double.toString(percent)
+            )
+            .apply();
+}
 
     // =========================================================
     // SYMBOL DETAILS
