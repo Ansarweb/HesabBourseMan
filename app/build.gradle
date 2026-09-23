@@ -1,41 +1,39 @@
-plugins {
-    id 'com.android.application'
+plugins { id 'com.android.application' }
+
+android { namespace 'ir.ansarweb.hesabbourse'
+
+compileSdk 36
+
+defaultConfig {
+    applicationId 'ir.ansarweb.hesabbourse'
+
+    minSdk 24
+    targetSdk 36
+
+    versionCode 3
+    versionName "2.1"
 }
 
-android {
-    namespace 'ir.ansarweb.hesabbourse'
+def ksFile = System.getenv("KEYSTORE_FILE")
+def ksPassword = System.getenv("KEYSTORE_PASSWORD")
+def ksAlias = System.getenv("KEY_ALIAS")
 
-    compileSdk 36
-
-    defaultConfig {
-        applicationId 'ir.ansarweb.hesabbourse'
-
-        minSdk 24
-        targetSdk 36
-
-        versionCode 3
-        versionName "2.1"
-    }
-
-    buildTypes {
-        release {
-            def keystoreFile = System.getenv("KEYSTORE_FILE")
-            def keystorePassword = System.getenv("KEYSTORE_PASSWORD")
-            def keyAlias = System.getenv("KEY_ALIAS")
-
-            if (keystoreFile && keystorePassword && keyAlias) {
-                signingConfig android.signingConfigs.create("release") {
-                    storeFile = file(keystoreFile)
-                    storePassword = keystorePassword
-                    keyAlias = keyAlias
-                    keyPassword = keystorePassword
-                }
-            }
+signingConfigs {
+    release {
+        if (ksFile && ksPassword && ksAlias) {
+            storeFile = file(ksFile)
+            storePassword = ksPassword
+            keyAlias = ksAlias
+            keyPassword = ksPassword
         }
     }
 }
 
-dependencies {
-    implementation 'androidx.appcompat:appcompat:1.7.0'
-    implementation 'com.google.android.material:material:1.12.0'
+buildTypes {
+    release {
+        signingConfig = signingConfigs.release
+    }
 }
+}
+
+dependencies { implementation 'androidx.appcompat:appcompat:1.7.0' implementation 'com.google.android.material:material:1.12.0' }
