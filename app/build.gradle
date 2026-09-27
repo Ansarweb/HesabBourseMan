@@ -1,6 +1,9 @@
-plugins { id 'com.android.application' }
+plugins {
+id 'com.android.application'
+}
 
-android { namespace 'ir.ansarweb.hesabbourse'
+android {
+namespace 'ir.ansarweb.hesabbourse'
 
 compileSdk 36
 
@@ -14,26 +17,9 @@ defaultConfig {
     versionName "2.1"
 }
 
-def ksFile = System.getenv("KEYSTORE_FILE")
-def ksPassword = System.getenv("KEYSTORE_PASSWORD")
-def ksAlias = System.getenv("KEY_ALIAS")
-
-signingConfigs {
-    release {
-        if (ksFile && ksPassword && ksAlias) {
-            storeFile = file(ksFile)
-            storePassword = ksPassword
-            keyAlias = ksAlias
-            keyPassword = ksPassword
-        }
-    }
 }
 
-buildTypes {
-    release {
-        signingConfig = signingConfigs.release
-    }
+dependencies {
+implementation 'androidx.appcompat:appcompat:1.7.0'
+implementation 'com.google.android.material:material:1.12.0'
 }
-}
-
-dependencies { implementation 'androidx.appcompat:appcompat:1.7.0' implementation 'com.google.android.material:material:1.12.0' }
