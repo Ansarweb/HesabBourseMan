@@ -1,25 +1,40 @@
 plugins {
-id 'com.android.application'
+    id 'com.android.application'
 }
 
 android {
-namespace 'ir.ansarweb.hesabbourse'
+    namespace 'ir.ansarweb.hesabbourse'
 
-compileSdk 36
+    compileSdk 36
 
-defaultConfig {
-    applicationId 'ir.ansarweb.hesabbourse'
+    defaultConfig {
+        applicationId 'ir.ansarweb.hesabbourse'
 
-    minSdk 24
-    targetSdk 36
+        minSdk 24
+        targetSdk 36
 
-    versionCode 3
-    versionName "2.1"
-}
+        versionCode 3
+        versionName "2.1"
+    }
 
+    signingConfigs {
+        release {
+            storeFile file(System.getenv("KEYSTORE_FILE") ?: "release-key.jks")
+            storePassword System.getenv("KEYSTORE_PASSWORD")
+            keyAlias System.getenv("KEY_ALIAS")
+            keyPassword System.getenv("KEY_PASSWORD")
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+        }
+    }
 }
 
 dependencies {
-implementation 'androidx.appcompat:appcompat:1.7.0'
-implementation 'com.google.android.material:material:1.12.0'
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'com.google.android.material:material:1.12.0'
 }
